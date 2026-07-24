@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<!-- ================================================
+	     METADATA
+	================================================ -->
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+	<meta name="theme-color" content="#0b0f2a">
+	<meta name="description" content="Chapter Five — Collect My Heart. A cinematic, romantic interactive birthday experience.">
+	<meta name="author" content="Birthday Cinematic Experience">
+
+	<!-- Open Graph -->
+	<meta property="og:title" content="Chapter Five — Collect My Heart">
+	<meta property="og:description" content="Every little heart carries a piece of what I couldn't always say.">
+	<meta property="og:type" content="website">
+
+	<title>Chapter Five — Collect My Heart</title>
+
+	<!-- Preconnect -->
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,500&family=Manrope:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+	<!-- Stylesheet -->
+	<link rel="stylesheet" href="css/chapter5.css">
+
+	<!-- GSAP -->
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" defer></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/MotionPathPlugin.min.js" defer></script>
+
+	<!-- Chapter Script -->
+	<script src="js/chapter5.js" defer></script>
+</head>
+<body class="chapter chapter-five">
+
+	<!-- ================================================
+	     LOADING SCREEN
+	================================================ -->
+	<div id="loadingOverlay" class="loading-overlay" role="status" aria-live="polite">
+		<div class="loading-overlay__inner">
+			<span class="loading-overlay__spinner" aria-hidden="true"></span>
+			<p class="loading-overlay__text">Gathering little pieces of the heart&hellip;</p>
+		</div>
+	</div>
+
+	<!-- ================================================
+	     FLASH TRANSITION
+	================================================ -->
+	<div id="flashOverlay" class="flash-overlay" aria-hidden="true" hidden></div>
+
+	<!-- ================================================
+	     BACKGROUND LAYERS
+	================================================ -->
+	<div class="background" aria-hidden="true">
+		<div class="sky"></div>
+		<div class="moon-glow" id="moonGlow"></div>
+		<div class="moon" id="moon">
+			<img
+				src="images/m.png"
+				alt=""
+				class="moon__image"
+				draggable="false"
+			>
+			<div class="moon__sparkle" id="moonSparkle"></div>
+		</div>
+		<div class="stars" id="stars"></div>
+		<div class="particles" id="particles"></div>
+		<div class="fireflies" id="fireflies"></div>
+		<div class="fog fog--back" id="fogBack"></div>
+		<div class="fog fog--middle" id="fogMiddle"></div>
+		<div class="fog fog--front" id="fogFront"></div>
+	</div>
+
+	<!-- ================================================
+	     AUDIO
+	================================================ -->
+	<audio id="ambientMusic" preload="auto" loop class="hidden-audio">
+		<source src="audio/chapter5-ambient.mp3" type="audio/mpeg">
+	</audio>
+	<audio id="heartCollectSound" preload="auto" class="hidden-audio">
+		<source src="audio/heart-collect.mp3" type="audio/mpeg">
+	</audio>
+	<audio id="magicSparkleSound" preload="auto" class="hidden-audio">
+		<source src="audio/magic-sparkle.mp3" type="audio/mpeg">
+	</audio>
+	<audio id="finalMagicSound" preload="auto" class="hidden-audio">
+		<source src="audio/final-magic.mp3" type="audio/mpeg">
+	</audio>
+
+	<!-- ================================================
+	     MUSIC TOGGLE
+	================================================ -->
+	<button
+		type="button"
+		id="musicToggle"
+		class="music-toggle"
+		aria-pressed="false"
+		aria-label="Play ambient music"
+	>
+		<svg class="music-toggle__icon music-toggle__icon--play" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+			<path d="M8 5v14l11-7z"></path>
+		</svg>
+		<svg class="music-toggle__icon music-toggle__icon--pause" viewBox="0 0 24 24" aria-hidden="true" focusable="false" hidden>
+			<path d="M6 5h4v14H6zM14 5h4v14h-4z"></path>
+		</svg>
+	</button>
+
+	<!-- ================================================
+	     MAIN
+	================================================ -->
+	<main id="main" class="main">
+
+		<!-- ============================================
+		     HERO
+		============================================ -->
+		<header class="hero" id="hero">
+			<p class="hero__label" id="heroLabel">Chapter Five</p>
+			<h1 class="hero__title" id="heroTitle">Collect My Heart</h1>
+			<p class="hero__subtitle" id="heroSubtitle">"Every little heart carries a piece of what I couldn't always say."</p>
+			<p class="hero__hint" id="heroHint">Touch each floating heart to collect it.</p>
+		</header>
+
+		<!-- ============================================
+		     LOVE METER
+		============================================ -->
+		<section class="love-meter" id="loveMeter" aria-labelledby="loveMeterTitle">
+			<div class="love-meter__glass">
+				<h2 class="love-meter__title" id="loveMeterTitle">Love Meter</h2>
+				<div class="love-meter__track" id="loveMeterTrack" role="progressbar" aria-valuemin="0" aria-valuemax="20" aria-valuenow="0" aria-labelledby="loveMeterTitle" aria-describedby="progressText">
+					<div class="love-meter__fill" id="progressFill"></div>
+				</div>
+				<p class="love-meter__count" id="progressText">0 / 20 Hearts Collected</p>
+			</div>
+		</section>
+
+		<!-- ============================================
+		     HEART FIELD
+		============================================ -->
+		<section class="heart-field" id="heartField" aria-label="Floating hearts to collect">
+			<div class="heart-container" id="heartContainer"></div>
+		</section>
+
+	</main>
+
+	<!-- ================================================
+	     GLASS MESSAGE CARD
+	================================================ -->
+	<div
+		class="popup"
+		id="messageCard"
+		role="dialog"
+		aria-modal="true"
+		aria-labelledby="messageCardTitle"
+		aria-describedby="messageCardBody"
+		hidden
+	>
+		<div class="popup__glass">
+			<p class="popup__label" id="messageCardLabel">You Found Every Piece</p>
+			<h2 class="popup__title" id="messageCardTitle">You Collected My Entire Heart</h2>
+			<p class="popup__body" id="messageCardBody">Every heart you gathered tonight was a quiet piece of everything I've ever felt for you — the words I never quite managed to say out loud, now finally in your hands.</p>
+			<p class="popup__secondary" id="messageCardSecondary">Someone still has one more surprise waiting&hellip;</p>
+			<button type="button" class="popup__continue" id="popupContinueButton">Continue</button>
+		</div>
+	</div>
+
+	<!-- ================================================
+	     CONTINUE SECTION
+	================================================ -->
+	<section class="continue-section" id="continueSection" aria-label="Continue to next chapter">
+		<button
+			type="button"
+			id="continueButton"
+			class="continue-button"
+			disabled
+			aria-disabled="true"
+			hidden
+		>
+			Continue
+		</button>
+		<a
+			href="chapter6.html"
+			id="chapterSixLink"
+			class="chapter-six-link"
+			hidden
+			tabindex="-1"
+			aria-hidden="true"
+		>Continue to Chapter Six</a>
+	</section>
+
+</body>
+</html>

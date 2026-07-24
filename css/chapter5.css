@@ -1,0 +1,1062 @@
+/* ==========================================================
+   1. DESIGN TOKENS
+========================================================== */
+:root {
+	/* Midnight palette */
+	--color-midnight-deep: #05061a;
+	--color-midnight: #0b0f2a;
+	--color-navy-soft: #131a3d;
+	--color-moonlight-blue: #22305e;
+
+	/* Pink palette */
+	--color-luxury-pink: #e8a9c0;
+	--color-soft-rose: #f2c9d6;
+	--color-rose-deep: #c97b96;
+
+	/* Champagne gold palette */
+	--color-champagne: #e9d3a3;
+	--color-champagne-bright: #f4e4bb;
+	--color-champagne-deep: #b99a63;
+
+	/* Moon whites */
+	--color-moon-white: #fbf6ea;
+	--color-warm-ivory: #f7ecd9;
+	--color-white-glow: #ffffff;
+
+	/* Glass */
+	--glass-fill: rgba(251, 246, 234, 0.06);
+	--glass-fill-strong: rgba(251, 246, 234, 0.1);
+	--glass-border: rgba(233, 211, 163, 0.25);
+	--glass-highlight: rgba(255, 255, 255, 0.35);
+	--glass-blur: 18px;
+
+	/* Shadow system */
+	--shadow-soft: 0 20px 60px rgba(0, 0, 0, 0.45);
+	--shadow-glow-pink: 0 0 40px rgba(232, 169, 192, 0.35);
+	--shadow-glow-gold: 0 0 30px rgba(233, 211, 163, 0.3);
+	--shadow-inset: inset 0 1px 1px rgba(255, 255, 255, 0.15);
+
+	/* Border */
+	--border-champagne: rgba(233, 211, 163, 0.4);
+	--border-soft: rgba(255, 255, 255, 0.12);
+
+	/* Radius */
+	--radius-sm: 10px;
+	--radius-md: 18px;
+	--radius-lg: 28px;
+	--radius-pill: 999px;
+
+	/* Spacing scale */
+	--space-2xs: clamp(0.25rem, 0.3vw, 0.375rem);
+	--space-xs: clamp(0.5rem, 0.6vw, 0.75rem);
+	--space-sm: clamp(0.75rem, 1vw, 1.25rem);
+	--space-md: clamp(1.25rem, 2vw, 2rem);
+	--space-lg: clamp(2rem, 4vw, 3.5rem);
+	--space-xl: clamp(3rem, 6vw, 5.5rem);
+	--space-2xl: clamp(4rem, 9vw, 8rem);
+
+	/* Typography */
+	--font-display: 'Cormorant Garamond', 'Times New Roman', serif;
+	--font-body: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
+
+	/* Animation speeds */
+	--speed-instant: 180ms;
+	--speed-fast: 320ms;
+	--speed-medium: 650ms;
+	--speed-slow: 1200ms;
+	--speed-ambient: 8s;
+
+	/* Luxury easing curves (used by CSS transitions; GSAP uses matching JS eases) */
+	--ease-luxury: cubic-bezier(0.22, 1, 0.36, 1);   /* ~expo.out feel */
+	--ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+	--ease-breathe: cubic-bezier(0.45, 0, 0.55, 1);  /* ~sine.inOut feel */
+	--ease-out-power2: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+	--ease-out-power3: cubic-bezier(0.165, 0.84, 0.44, 1);
+
+	/* Glow / warmth interpolants — driven smoothly by JS as hearts are collected */
+	--glow-intensity: 1;
+	--warmth: 0;
+	--firefly-density: 1;
+}
+
+/* ==========================================================
+   2. RESET
+========================================================== */
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+	margin: 0;
+	padding: 0;
+}
+
+img,
+svg {
+	display: block;
+	max-width: 100%;
+}
+
+button {
+	font: inherit;
+	color: inherit;
+	background: none;
+	border: none;
+	cursor: pointer;
+}
+
+a {
+	color: inherit;
+	text-decoration: none;
+}
+
+html {
+	scroll-behavior: smooth;
+}
+
+/* ==========================================================
+   3. BODY
+========================================================== */
+html,
+body {
+	height: 100%;
+}
+
+body {
+	min-height: 100vh;
+	/* Dynamic/small viewport units account for mobile browser chrome (address bar,
+	   home indicator) so the scene never shows a gap or forces a scrollbar when
+	   the browser UI shows/hides. Ignored by browsers that don't support it. */
+	min-height: 100svh;
+	min-height: 100dvh;
+	overflow-x: hidden;
+	position: relative;
+	background: var(--color-midnight-deep);
+	color: var(--color-warm-ivory);
+	font-family: var(--font-body);
+	font-weight: 400;
+	line-height: 1.6;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	text-rendering: optimizeLegibility;
+	/* smooth cross-fade whenever body-level scene classes toggle */
+	transition: background-color var(--speed-slow) var(--ease-breathe);
+}
+
+.hidden-audio {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+}
+
+/* ==========================================================
+   4. BACKGROUND
+========================================================== */
+.background {
+	position: fixed;
+	inset: 0;
+	z-index: 0;
+	overflow: hidden;
+	pointer-events: none;
+	/* GPU-accelerated compositing layer for the whole ambient scene */
+	transform: translateZ(0);
+}
+
+.sky {
+	position: absolute;
+	inset: 0;
+	background:
+		radial-gradient(ellipse 80% 50% at 50% 15%, rgba(34, 48, 94, 0.55), transparent 60%),
+		radial-gradient(ellipse 60% 40% at 20% 80%, rgba(19, 26, 61, 0.6), transparent 65%),
+		linear-gradient(180deg, var(--color-midnight) 0%, var(--color-midnight-deep) 55%, #030412 100%);
+	transition: filter var(--speed-slow) var(--ease-breathe);
+}
+
+/* ==========================================================
+   5. MOON
+========================================================== */
+.moon-glow {
+	position: absolute;
+	top: 6%;
+	left: 50%;
+	width: min(70vw, 900px);
+	height: min(70vw, 900px);
+	transform: translate3d(-50%, 0, 0) scale(0.9);
+	opacity: 0;
+	background: radial-gradient(circle, rgba(251, 246, 234, calc(0.22 * var(--glow-intensity))) 0%, rgba(233, 211, 163, calc(0.08 * var(--glow-intensity))) 35%, transparent 70%);
+	filter: blur(30px);
+	animation: moonGlowBreathe 9s var(--ease-breathe) infinite;
+	animation-play-state: paused;
+	will-change: opacity, transform;
+}
+
+.moon {
+	position: absolute;
+	top: 9%;
+	left: 50%;
+	width: clamp(120px, 14vw, 190px);
+	height: clamp(120px, 14vw, 190px);
+	transform: translate3d(-50%, 0, 0) scale(0.96);
+	opacity: 0;
+	animation: moonBreathe 9s var(--ease-breathe) infinite;
+	animation-play-state: paused;
+	will-change: transform;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.moon__image {
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+	user-select: none;
+	pointer-events: none;
+	filter:
+		drop-shadow(0 0 25px rgba(255,255,255,calc(.35 * var(--glow-intensity))))
+		drop-shadow(0 0 60px rgba(233,211,163,calc(.30 * var(--glow-intensity))))
+		drop-shadow(0 0 110px rgba(233,211,163,calc(.18 * var(--glow-intensity))));
+	transition: filter var(--speed-slow) var(--ease-breathe);
+}
+
+.moon__sparkle {
+	position: absolute;
+	top: 22%;
+	left: 68%;
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	background: var(--color-white-glow);
+	filter: blur(1px);
+	animation: sparklePulse 4.5s ease-in-out infinite;
+}
+
+@keyframes moonBreathe {
+	0%, 100% { transform: translate3d(-50%, 0, 0) scale(1); }
+	50% { transform: translate3d(-50%, 0, 0) scale(1.03); }
+}
+
+@keyframes moonGlowBreathe {
+	0%, 100% { opacity: 0.85; transform: translate3d(-50%, 0, 0) scale(1); }
+	50% { opacity: 1; transform: translate3d(-50%, 0, 0) scale(1.05); }
+}
+
+@keyframes sparklePulse {
+	0%, 100% { opacity: 0.2; transform: scale(0.8); }
+	50% { opacity: 0.9; transform: scale(1.3); }
+}
+
+/* ==========================================================
+   6. STARS  (twinkle handled entirely by CSS — no JS per-frame cost)
+========================================================== */
+.stars {
+	position: absolute;
+	inset: 0;
+	opacity: 0;
+	transition: opacity 1.6s var(--ease-breathe);
+}
+
+.star {
+	position: absolute;
+	border-radius: 50%;
+	background: var(--color-moon-white);
+	animation: starTwinkle var(--twinkle-duration, 4s) ease-in-out infinite;
+	animation-delay: var(--twinkle-delay, 0s);
+	will-change: opacity;
+}
+
+@keyframes starTwinkle {
+	0%, 100% { opacity: var(--star-min-opacity, 0.15); }
+	50% { opacity: calc(var(--star-max-opacity, 0.9) * var(--glow-intensity, 1)); }
+}
+
+/* ==========================================================
+   7. PARTICLES
+========================================================== */
+.particles {
+	position: absolute;
+	inset: 0;
+}
+
+.particle {
+	position: absolute;
+	border-radius: 50%;
+	background: radial-gradient(circle, var(--color-champagne-bright), transparent 70%);
+	filter: blur(1px);
+	opacity: 0;
+	animation: particleRise var(--particle-duration, 9s) ease-in-out infinite;
+	animation-delay: var(--particle-delay, 0s);
+	will-change: transform, opacity;
+}
+
+@keyframes particleRise {
+	0% { transform: translate3d(0, 0, 0); opacity: 0; }
+	10% { opacity: 0.8; }
+	85% { opacity: 0.4; }
+	100% { transform: translate3d(var(--particle-drift, 20px), -120vh, 0); opacity: 0; }
+}
+
+/* ==========================================================
+   8. FIREFLIES
+========================================================== */
+.fireflies {
+	position: absolute;
+	inset: 0;
+	opacity: 0;
+	transition: opacity 2s var(--ease-breathe);
+}
+
+.firefly {
+	position: absolute;
+	width: var(--firefly-size, 6px);
+	height: var(--firefly-size, 6px);
+	border-radius: 50%;
+	background: var(--color-champagne-bright);
+	box-shadow: 0 0 12px 4px rgba(233, 211, 163, calc(0.6 * var(--glow-intensity)));
+	opacity: 0;
+	transform: scale(0.4);
+	animation:
+		fireflyDrift var(--firefly-duration, 12s) var(--ease-breathe) infinite,
+		fireflyBreathe var(--firefly-breathe, 3.5s) ease-in-out infinite;
+	animation-delay: var(--firefly-delay, 0s);
+	will-change: transform, opacity;
+}
+
+.firefly.is-awake {
+	opacity: 1;
+	transform: scale(1);
+	transition: opacity 0.9s var(--ease-out-power3), transform 0.9s var(--ease-out-power3);
+}
+
+@keyframes fireflyDrift {
+	0% { transform: translate3d(0, 0, 0); }
+	25% { transform: translate3d(var(--fx1, 30px), var(--fy1, -40px), 0); }
+	50% { transform: translate3d(var(--fx2, -20px), var(--fy2, -15px), 0); }
+	75% { transform: translate3d(var(--fx3, 15px), var(--fy3, 30px), 0); }
+	100% { transform: translate3d(0, 0, 0); }
+}
+
+@keyframes fireflyBreathe {
+	0%, 100% { opacity: 0.35; }
+	50% { opacity: 1; }
+}
+
+/* ==========================================================
+   9. FOG
+========================================================== */
+.fog {
+	position: absolute;
+	left: -10%;
+	width: 120%;
+	height: 40vh;
+	filter: blur(40px);
+	pointer-events: none;
+	opacity: 0;
+	transition: opacity 2s var(--ease-breathe);
+}
+
+.fog--back {
+	top: 10%;
+	background: linear-gradient(90deg, transparent, rgba(19, 26, 61, 0.35), transparent);
+	animation: fogDriftSlow 60s linear infinite;
+}
+.fog--back.is-awake { opacity: 0.5; }
+
+.fog--middle {
+	top: 45%;
+	background: linear-gradient(90deg, transparent, rgba(34, 48, 94, 0.3), transparent);
+	animation: fogDriftMedium 42s linear infinite reverse;
+}
+.fog--middle.is-awake { opacity: 0.4; }
+
+.fog--front {
+	bottom: -5%;
+	top: auto;
+	background: linear-gradient(90deg, transparent, rgba(5, 6, 26, 0.55), transparent);
+	animation: fogDriftFast 28s linear infinite;
+}
+.fog--front.is-awake { opacity: 0.6; }
+
+@keyframes fogDriftSlow {
+	0% { transform: translate3d(-5%, 0, 0); }
+	50% { transform: translate3d(5%, 0, 0); }
+	100% { transform: translate3d(-5%, 0, 0); }
+}
+
+@keyframes fogDriftMedium {
+	0% { transform: translate3d(-8%, 0, 0); }
+	50% { transform: translate3d(8%, 0, 0); }
+	100% { transform: translate3d(-8%, 0, 0); }
+}
+
+@keyframes fogDriftFast {
+	0% { transform: translate3d(-6%, 0, 0); }
+	50% { transform: translate3d(6%, 0, 0); }
+	100% { transform: translate3d(-6%, 0, 0); }
+}
+
+/* ==========================================================
+   10. MAIN LAYOUT
+========================================================== */
+.main {
+	position: relative;
+	z-index: 1;
+	max-width: 1200px;
+	margin: 0 auto;
+	padding: var(--space-2xl) var(--space-md) var(--space-xl);
+	padding-top: calc(var(--space-2xl) + env(safe-area-inset-top, 0px));
+	padding-left: calc(var(--space-md) + env(safe-area-inset-left, 0px));
+	padding-right: calc(var(--space-md) + env(safe-area-inset-right, 0px));
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--space-xl);
+}
+
+/* ==========================================================
+   11. HERO
+========================================================== */
+.hero {
+	text-align: center;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--space-sm);
+	max-width: 640px;
+	opacity: 0;
+}
+
+.hero__label,
+.hero__title,
+.hero__subtitle,
+.hero__hint {
+	opacity: 0;
+	transform: translate3d(0, 16px, 0);
+	filter: blur(6px);
+	will-change: transform, opacity, filter;
+}
+
+.hero__label {
+	font-family: var(--font-body);
+	font-size: 0.75rem;
+	letter-spacing: 0.35em;
+	text-transform: uppercase;
+	color: var(--color-champagne);
+	opacity: 0.85;
+}
+
+.hero__title {
+	font-family: var(--font-display);
+	font-weight: 500;
+	font-size: clamp(2.4rem, 6vw, 4.2rem);
+	color: var(--color-moon-white);
+	text-shadow: 0 0 calc(30px * var(--glow-intensity)) rgba(251, 246, 234, 0.35), 0 0 calc(60px * var(--glow-intensity)) rgba(233, 211, 163, 0.2);
+	line-height: 1.1;
+	transition: text-shadow var(--speed-slow) var(--ease-breathe);
+}
+
+.hero__subtitle {
+	font-family: var(--font-display);
+	font-style: italic;
+	font-size: clamp(1.05rem, 2vw, 1.35rem);
+	color: var(--color-soft-rose);
+	opacity: 0.85;
+	max-width: 32ch;
+}
+
+.hero__hint {
+	margin-top: var(--space-2xs);
+	font-size: 0.7rem;
+	letter-spacing: 0.25em;
+	text-transform: uppercase;
+	font-weight: 300;
+	color: var(--color-warm-ivory);
+	opacity: 0.55;
+}
+
+/* ==========================================================
+   12. LOVE METER
+========================================================== */
+.love-meter {
+	width: 100%;
+	display: flex;
+	justify-content: center;
+	opacity: 0;
+}
+
+.love-meter__glass {
+	width: min(100%, 420px);
+	padding: var(--space-md) var(--space-lg);
+	border-radius: var(--radius-lg);
+	background: var(--glass-fill);
+	border: 1px solid var(--glass-border);
+	backdrop-filter: blur(var(--glass-blur));
+	-webkit-backdrop-filter: blur(var(--glass-blur));
+	box-shadow: var(--shadow-soft), var(--shadow-inset);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--space-sm);
+	opacity: 0;
+	transform: translate3d(0, 40px, 0);
+	filter: blur(10px);
+	will-change: transform, opacity, filter;
+	transition: border-color var(--speed-slow) var(--ease-breathe), box-shadow var(--speed-slow) var(--ease-breathe);
+}
+
+.love-meter__title {
+	font-size: 0.72rem;
+	letter-spacing: 0.3em;
+	text-transform: uppercase;
+	font-weight: 500;
+	color: var(--color-champagne);
+	opacity: 0.85;
+}
+
+.love-meter__track {
+	position: relative;
+	width: 100%;
+	height: 6px;
+	border-radius: var(--radius-pill);
+	background: rgba(255, 255, 255, 0.08);
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	overflow: hidden;
+}
+
+.love-meter__fill {
+	position: relative;
+	height: 100%;
+	width: 0%;
+	border-radius: var(--radius-pill);
+	background: linear-gradient(90deg, var(--color-rose-deep), var(--color-luxury-pink), var(--color-champagne));
+	box-shadow: 0 0 14px rgba(232, 169, 192, 0.6);
+	transition: width 1.1s var(--ease-luxury);
+	overflow: hidden;
+}
+
+.love-meter__fill::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+	width: 40%;
+	animation: meterShine 3.5s ease-in-out infinite;
+}
+
+@keyframes meterShine {
+	0% { transform: translate3d(-120%, 0, 0); }
+	100% { transform: translate3d(280%, 0, 0); }
+}
+
+.love-meter__count {
+	font-size: 0.85rem;
+	font-weight: 400;
+	letter-spacing: 0.04em;
+	color: var(--color-warm-ivory);
+	opacity: 0.85;
+}
+
+.love-meter.is-pulsing .love-meter__glass {
+	animation: meterPulse 2.6s var(--ease-breathe) infinite;
+}
+
+.love-meter.is-complete .love-meter__fill {
+	box-shadow: 0 0 28px rgba(233, 211, 163, 0.85);
+}
+
+@keyframes meterPulse {
+	0%, 100% { box-shadow: var(--shadow-soft), var(--shadow-inset); }
+	50% { box-shadow: var(--shadow-soft), var(--shadow-glow-gold), var(--shadow-inset); }
+}
+
+/* ==========================================================
+   13. HEART FIELD
+========================================================== */
+.heart-field {
+	position: relative;
+	width: 100%;
+	min-height: 55vh;
+	overflow: visible;
+}
+
+.heart-container {
+	position: absolute;
+	inset: 0;
+	overflow: visible;
+}
+
+/* ==========================================================
+   14. HEART COMPONENT
+========================================================== */
+.heart {
+	position: absolute;
+	width: var(--heart-size, 34px);
+	height: var(--heart-size, 34px);
+	cursor: pointer;
+	transform-origin: center;
+	will-change: transform, opacity;
+	filter: drop-shadow(0 0 10px rgba(232, 169, 192, calc(0.55 * var(--glow-intensity))));
+	transition: filter var(--speed-medium) var(--ease-soft);
+	opacity: 0;
+	/* `scale` is an independent CSS transform property (distinct from `transform`),
+	   so this breathing loop composes cleanly with the translate/rotate that the
+	   rAF loop writes to `transform` and with any GSAP tween on `transform`/`opacity`. */
+	animation: heartBreathe var(--heart-pulse, 3.2s) ease-in-out infinite;
+	animation-play-state: paused;
+}
+
+.heart.is-idle {
+	animation-play-state: running;
+}
+
+/* Invisible hit-slop so small hearts still meet a ~44px minimum touch target
+   on phones/tablets. Pure hit-testing box — draws nothing, so it never
+   changes what the heart looks like. Scoped to coarse pointers (touch) only,
+   so desktop mouse interaction and desktop visuals are completely untouched. */
+@media (pointer: coarse) {
+	.heart::before {
+		content: '';
+		position: absolute;
+		inset: min(0px, calc((var(--heart-size, 34px) - 44px) / 2));
+	}
+}
+
+.heart svg {
+	width: 100%;
+	height: 100%;
+	overflow: visible;
+}
+
+.heart__glass {
+	fill: url(#heartGradient);
+}
+
+@keyframes heartBreathe {
+	0%, 100% { scale: 0.98; }
+	50% { scale: 1.02; }
+}
+
+.heart:hover,
+.heart:focus-visible {
+	filter: drop-shadow(0 0 22px rgba(232, 169, 192, 0.9));
+	outline: none;
+}
+
+.heart:focus-visible {
+	outline: 2px solid var(--color-champagne);
+	outline-offset: 6px;
+	border-radius: 50%;
+}
+
+.heart.is-collected {
+	pointer-events: none;
+}
+
+/* ==========================================================
+   HEART BURST PARTICLES (pooled — created once, reused)
+========================================================== */
+.heart-burst-particle {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 5px;
+	height: 5px;
+	border-radius: 50%;
+	background: var(--color-champagne-bright);
+	box-shadow: 0 0 8px rgba(233, 211, 163, 0.8);
+	pointer-events: none;
+	opacity: 0;
+	will-change: transform, opacity;
+}
+
+.heart-flight {
+	position: fixed;
+	top: 0;
+	left: 0;
+	pointer-events: none;
+	will-change: transform, opacity;
+}
+
+/* ==========================================================
+   15. GLASS CARD (POPUP)
+========================================================== */
+.popup {
+	position: fixed;
+	inset: 0;
+	z-index: 20;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: var(--space-md);
+	background: rgba(5, 6, 26, 0);
+	backdrop-filter: blur(0px);
+	-webkit-backdrop-filter: blur(0px);
+	transition: background var(--speed-slow) var(--ease-breathe), backdrop-filter var(--speed-slow) var(--ease-breathe);
+}
+
+.popup[hidden] {
+	display: none;
+}
+
+.popup.is-open {
+	background: rgba(5, 6, 26, 0.55);
+	backdrop-filter: blur(6px);
+	-webkit-backdrop-filter: blur(6px);
+}
+
+.popup__glass {
+	position: relative;
+	width: min(100%, 480px);
+	padding: var(--space-xl) var(--space-lg);
+	border-radius: var(--radius-lg);
+	background: var(--glass-fill-strong);
+	border: 1px solid var(--glass-border);
+	backdrop-filter: blur(24px);
+	-webkit-backdrop-filter: blur(24px);
+	box-shadow: var(--shadow-soft), var(--shadow-glow-pink), var(--shadow-inset);
+	text-align: center;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--space-sm);
+	opacity: 0;
+	transform: translate3d(0, 24px, 0);
+	filter: blur(4px);
+}
+
+.popup__label,
+.popup__title,
+.popup__body,
+.popup__secondary,
+.popup__continue {
+	opacity: 0;
+	transform: translate3d(0, 12px, 0);
+	will-change: transform, opacity;
+}
+
+.popup__label {
+	font-size: 0.7rem;
+	letter-spacing: 0.3em;
+	text-transform: uppercase;
+	color: var(--color-champagne);
+	opacity: 0.85;
+}
+
+.popup__title {
+	font-family: var(--font-display);
+	font-weight: 500;
+	font-size: clamp(1.7rem, 4vw, 2.4rem);
+	color: var(--color-moon-white);
+	text-shadow: 0 0 25px rgba(251, 246, 234, 0.3);
+	line-height: 1.15;
+}
+
+.popup__body {
+	font-size: 1rem;
+	line-height: 1.75;
+	color: var(--color-warm-ivory);
+	max-width: 42ch;
+}
+
+.popup__secondary {
+	font-size: 0.85rem;
+	font-style: italic;
+	font-family: var(--font-display);
+	color: var(--color-soft-rose);
+	opacity: 0.75;
+}
+
+.popup__continue {
+	margin-top: var(--space-sm);
+}
+
+/* ==========================================================
+   16. CONTINUE BUTTON
+========================================================== */
+.continue-section {
+	position: relative;
+	z-index: 1;
+	display: flex;
+	justify-content: center;
+	padding: 0 var(--space-md) var(--space-2xl);
+	padding-bottom: calc(var(--space-2xl) + env(safe-area-inset-bottom, 0px));
+	padding-left: calc(var(--space-md) + env(safe-area-inset-left, 0px));
+	padding-right: calc(var(--space-md) + env(safe-area-inset-right, 0px));
+}
+
+.continue-button,
+.popup__continue {
+	appearance: none;
+	padding: var(--space-xs) var(--space-lg);
+	min-height: 48px;
+	min-width: 44px;
+	border-radius: var(--radius-pill);
+	background: var(--glass-fill);
+	border: 1px solid var(--border-champagne);
+	color: var(--color-champagne-bright);
+	font-family: var(--font-body);
+	font-size: 0.85rem;
+	letter-spacing: 0.15em;
+	text-transform: uppercase;
+	backdrop-filter: blur(var(--glass-blur));
+	-webkit-backdrop-filter: blur(var(--glass-blur));
+	box-shadow: var(--shadow-inset);
+	transition: transform var(--speed-medium) var(--ease-luxury), box-shadow var(--speed-medium) var(--ease-luxury), border-color var(--speed-medium) var(--ease-luxury), opacity var(--speed-medium) var(--ease-luxury);
+	opacity: 0;
+}
+
+.continue-button:not([hidden]),
+.popup__continue.is-ready {
+	opacity: 1;
+}
+
+.popup__continue.is-ready {
+	animation: continueBreathe 3.2s var(--ease-breathe) infinite;
+}
+
+@keyframes continueBreathe {
+	0%, 100% { box-shadow: var(--shadow-inset); }
+	50% { box-shadow: var(--shadow-glow-gold), var(--shadow-inset); }
+}
+
+.continue-button:hover,
+.popup__continue:hover {
+	transform: translate3d(0, -3px, 0);
+	box-shadow: var(--shadow-glow-gold), var(--shadow-inset);
+	border-color: var(--color-champagne-bright);
+	animation-play-state: paused;
+}
+
+.continue-button:active,
+.popup__continue:active {
+	transform: translate3d(0, 0, 0) scale(0.97);
+}
+
+.continue-button:disabled {
+	opacity: 0.35;
+	pointer-events: none;
+}
+
+.continue-button:focus-visible,
+.popup__continue:focus-visible,
+.heart:focus-visible,
+.music-toggle:focus-visible {
+	outline: 2px solid var(--color-champagne-bright);
+	outline-offset: 4px;
+}
+
+.chapter-six-link {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+}
+
+/* ==========================================================
+   LOADING OVERLAY
+========================================================== */
+.loading-overlay {
+	position: fixed;
+	inset: 0;
+	z-index: 100;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--color-midnight-deep);
+	transition: opacity var(--speed-slow) var(--ease-luxury), visibility var(--speed-slow) var(--ease-luxury);
+	padding:
+		env(safe-area-inset-top, 0)
+		env(safe-area-inset-right, 0)
+		env(safe-area-inset-bottom, 0)
+		env(safe-area-inset-left, 0);
+}
+
+.loading-overlay.is-hidden {
+	opacity: 0;
+	visibility: hidden;
+	pointer-events: none;
+}
+
+.loading-overlay__inner {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--space-sm);
+	text-align: center;
+}
+
+.loading-overlay__spinner {
+	width: 36px;
+	height: 36px;
+	border-radius: 50%;
+	border: 2px solid rgba(233, 211, 163, 0.2);
+	border-top-color: var(--color-champagne);
+	animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+	to { transform: rotate(360deg); }
+}
+
+.loading-overlay__text {
+	font-family: var(--font-display);
+	font-style: italic;
+	font-size: 1.1rem;
+	color: var(--color-soft-rose);
+	opacity: 0.85;
+}
+
+/* ==========================================================
+   FLASH OVERLAY
+========================================================== */
+.flash-overlay {
+	position: fixed;
+	inset: 0;
+	z-index: 200;
+	background: var(--color-moon-white);
+	opacity: 0;
+	pointer-events: none;
+}
+
+.flash-overlay[hidden] {
+	display: none;
+}
+
+/* ==========================================================
+   MUSIC TOGGLE
+========================================================== */
+.music-toggle {
+	position: fixed;
+	bottom: calc(var(--space-md) + env(safe-area-inset-bottom, 0px));
+	right: calc(var(--space-md) + env(safe-area-inset-right, 0px));
+	z-index: 30;
+	width: 48px;
+	height: 48px;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--glass-fill);
+	border: 1px solid var(--glass-border);
+	backdrop-filter: blur(var(--glass-blur));
+	-webkit-backdrop-filter: blur(var(--glass-blur));
+	box-shadow: var(--shadow-soft), var(--shadow-inset);
+	transition: transform var(--speed-medium) var(--ease-luxury), box-shadow var(--speed-medium) var(--ease-luxury);
+}
+
+.music-toggle:hover {
+	transform: translate3d(0, -2px, 0);
+	box-shadow: var(--shadow-glow-gold), var(--shadow-inset);
+}
+
+.music-toggle__icon {
+	width: 18px;
+	height: 18px;
+	fill: var(--color-champagne-bright);
+}
+
+/* ==========================================================
+   UTILITY / SCENE EVOLUTION CLASSES
+   (--glow-intensity and --warmth are interpolated smoothly by JS/GSAP;
+    these classes only add the touches that aren't practical as a
+    continuous variable, e.g. the sky's colour grade.)
+========================================================== */
+body.scene--warm .sky {
+	filter: saturate(1.1) brightness(1.05);
+}
+
+body.scene--golden .sky {
+	filter: saturate(1.22) brightness(1.12) hue-rotate(-4deg);
+}
+
+body.scene--bright .sky {
+	filter: saturate(1.3) brightness(1.18) hue-rotate(-6deg);
+}
+
+/* ==========================================================
+   RESPONSIVE
+========================================================== */
+@media (max-width: 768px) {
+	.main {
+		padding: var(--space-xl) var(--space-sm) var(--space-lg);
+		gap: var(--space-lg);
+	}
+	.heart-field {
+		min-height: 50vh;
+	}
+}
+
+@media (max-width: 600px) {
+	.hero__title {
+		font-size: clamp(2rem, 8vw, 2.8rem);
+	}
+	.love-meter__glass {
+		padding: var(--space-sm) var(--space-md);
+	}
+}
+
+@media (max-width: 480px) {
+	.popup__glass {
+		padding: var(--space-lg) var(--space-md);
+	}
+	.music-toggle {
+		bottom: calc(var(--space-sm) + env(safe-area-inset-bottom, 0px));
+		right: calc(var(--space-sm) + env(safe-area-inset-right, 0px));
+	}
+}
+
+@media (max-width: 430px), (max-width: 414px), (max-width: 412px), (max-width: 393px), (max-width: 390px) {
+	.hero {
+		gap: var(--space-xs);
+	}
+	.hero__hint {
+		font-size: 0.62rem;
+	}
+}
+
+@media (max-width: 375px), (max-width: 360px), (max-width: 320px) {
+	.love-meter__glass {
+		width: 100%;
+	}
+	.popup__title {
+		font-size: 1.5rem;
+	}
+	.continue-button,
+	.popup__continue {
+		width: 100%;
+	}
+}
+
+/* ==========================================================
+   ACCESSIBILITY — REDUCED MOTION
+========================================================== */
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.001ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.001ms !important;
+		scroll-behavior: auto !important;
+	}
+	.heart__float {
+		animation: none;
+	}
+	.love-meter__fill::after {
+		display: none;
+	}
+}
+
+/* ==========================================================
+   UTILITIES
+========================================================== */
+.visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	white-space: nowrap;
+}
