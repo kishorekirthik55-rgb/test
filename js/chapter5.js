@@ -524,6 +524,13 @@
 
 		await darkenStage();
 		await playHeartbeatBeats(heart);
+
+		/* Fix 2 — Stop heartbeat immediately after the last beat */
+		if (dom.heartbeatSound) {
+			dom.heartbeatSound.pause();
+			dom.heartbeatSound.currentTime = 0;
+		}
+
 		spawnCinematicDust(startRect);
 
 		await wait(CINEMATIC.PRE_TEXT_PAUSE_MS);
@@ -675,7 +682,14 @@
 			growHeartBeat(heart, CINEMATIC.BEAT_RISE_MS, CINEMATIC.BEAT_FALL_MS);
 
 			await setWorldVisibility(1, CINEMATIC.BEAT_RISE_MS);
-			safePlay(dom.heartbeatSound);
+
+			/* Fix 3 — Make sure each beat restarts cleanly */
+			if (dom.heartbeatSound) {
+				dom.heartbeatSound.pause();
+				dom.heartbeatSound.currentTime = 0;
+				dom.heartbeatSound.volume = 1.0;
+				await dom.heartbeatSound.play();
+			}
 			triggerHaptic();
 
 			await setWorldVisibility(0, CINEMATIC.BEAT_FALL_MS);
@@ -853,6 +867,12 @@
 		if (!dom.cinematicOverlay) return Promise.resolve();
 		dom.cinematicOverlay.setAttribute('aria-hidden', 'true');
 		unfreezeWorld();
+
+		/* Fix 4 — Emergency stop at the end of the cinematic sequence */
+		if (dom.heartbeatSound) {
+			dom.heartbeatSound.pause();
+			dom.heartbeatSound.currentTime = 0;
+		}
 
 		const duration = CINEMATIC.STAGE_CLEAR_MS;
 
@@ -1419,6 +1439,11 @@
 			initMusic();
 			setupEvents();
 			prepareContinueButton();
+
+			/* Fix 1 — Increase heartbeat volume */
+			if (dom.heartbeatSound) {
+				dom.heartbeatSound.volume = 1.0;
+			}
 
 			playEntranceAnimation();
 			startAnimationLoop();
