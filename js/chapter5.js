@@ -18,8 +18,93 @@
 		FINAL_PAUSE_MIN: 800,
 		FINAL_PAUSE_MAX: 1200,
 		HEART_EDGE_PADDING: 40,
-		NEXT_CHAPTER_URL: 'chapter6.html'
+		NEXT_CHAPTER_URL: 'chapter6.html',
+
+		/* typewriter / trail tuning */
+		TYPEWRITER_MS_MIN: 25,
+		TYPEWRITER_MS_MAX: 40,
+		TRAIL_INTERVAL_MS: 90,
+		METER_PULSE_MS: 900,
+		FINALE_DARKEN_MS: 1400,
+		HAPTIC_PULSE_MS: 25
 	};
+
+	/* ==================================================
+	   CINEMATIC HEARTBEAT + MEMORY SEQUENCE TUNING
+	   A real emotional build: freeze the whole world ->
+	   slow fade to near-black -> six slow heartbeats, each
+	   one a full breathing cycle where the entire scene
+	   (overlay, moon, stars, fog, fireflies) rises toward
+	   light together with the heart and settles back into
+	   darkness -> a held silence -> golden dust drifts in
+	   -> typewriter memory -> a calm reading pause ->
+	   dissolve -> fly to meter -> the whole world slowly
+	   wakes back up. Nothing here blinks or flashes —
+	   every stage is a tween, never a hard cut.
+	================================================== */
+	const CINEMATIC = {
+		DARKEN_MS: 1100,           // 0% -> near-black, slow fade (not a flash)
+		STAGE_OPACITY: 0.97,       // near-black baseline, never fully flat black
+
+		BEAT_COUNT: 6,             // six slow heartbeats
+		BEAT_PEAK_VISIBILITY: 0.72,// how much of the world becomes visible at the top of each beat
+		BEAT_RISE_MS: 1000,         // dark -> peak (passes through ~35% / ~55% / ~70%)
+		BEAT_FALL_MS: 1000,         // peak -> dark again
+		BEAT_PAUSE_MS: 900,        // stillness between one beat ending and the next starting
+		// one full beat (rise + fall + pause) lands ~960ms apart, matching "800-900ms" thump spacing plus a settle
+
+		POST_BEATS_SILENCE_MS: 1000, // held silence after the 6th heartbeat, before anything else
+
+		/* how visible the moon / stars / fog / fireflies get at the peak of each breath.
+		   Kept low on purpose — "slightly visible", not fully revealed. */
+		WORLD_DARK_OPACITY: 0.05,
+		WORLD_PEAK_OPACITY: 0.4,
+		MOON_DARK_OPACITY: 0.25,
+		MOON_PEAK_OPACITY: 1.00,
+
+		/* the heart's own breathing: 100% -> 108% -> 104% -> 100%, soft and slow, no elastic snap */
+		HEART_PEAK_SCALE: 1.08,
+		HEART_SETTLE_SCALE: 1.04,
+
+		DUST_MIN: 5,
+		DUST_MAX: 9,
+		DUST_SETTLE_MS: 1300,
+
+		PRE_TEXT_PAUSE_MS: 400,
+		TEXT_HOLD_MIN_MS: 4800,
+		TEXT_HOLD_MAX_MS: 5400,
+		TEXT_FADE_MS: 700,
+
+		DISSOLVE_MS: 1000,
+		STAGE_CLEAR_MS: 1300        // world slowly brightens back, matched to the darken speed
+	};
+
+	/* ==================================================
+	   1b. THE 20 MEMORIES (shown as floating text, no popup)
+	   Heart 20's message lives in the existing #messageCard
+	   popup, so only hearts 0–18 (Heart 1–19) get an entry here.
+	================================================== */
+	const MEMORIES = [
+		'Every heartbeat carried a memory of you.',
+		'Even the moon seemed brighter on the nights I thought of you.',
+		'The stars quietly became witnesses to every wish I made for you.',
+		'Your smile slowly became my favorite place in the world.',
+		"Some meetings feel like luck... ours felt like destiny.",
+		"If I could borrow time, I'd spend every second beside you.",
+		'Every gentle breeze somehow reminded me of your presence.',
+		'You appeared in my dreams long before this moment.',
+		'Every love song suddenly started making sense because of you.',
+		'Some feelings are simply too beautiful to fit into words.',
+		'You made ordinary days feel extraordinary.',
+		'Some letters are written with ink... this one was written with my heart.',
+		'You gave my heart butterflies without even trying.',
+		'Hope always had your smile hidden inside it.',
+		'The smallest moments with you became my biggest memories.',
+		"If every shooting star granted one wish... I spent them all on you.",
+		'Thank you for becoming such a beautiful chapter of my story.',
+		'Hidden inside every heart was another little piece of mine.',
+		"You're getting closer to the reason all of this exists."
+	];
 
 	/* ==================================================
 	   2. STATE
@@ -55,6 +140,7 @@
 		dom.heroHint = document.getElementById('heroHint');
 
 		dom.loveMeter = document.getElementById('loveMeter');
+		dom.loveMeterGlass = dom.loveMeter ? dom.loveMeter.querySelector('.love-meter__glass') : null;
 		dom.progressFill = document.getElementById('progressFill');
 		dom.progressText = document.getElementById('progressText');
 		dom.loveMeterTrack = document.getElementById('loveMeterTrack');
@@ -90,6 +176,19 @@
 		dom.heartCollectSound = document.getElementById('heartCollectSound');
 		dom.magicSparkleSound = document.getElementById('magicSparkleSound');
 		dom.finalMagicSound = document.getElementById('finalMagicSound');
+		/* Cinematic collection-sequence audio layers */
+		dom.heartbeatSound = document.getElementById('heartbeatSound');
+		dom.pianoNoteSound = document.getElementById('pianoNoteSound');
+
+		/* Cinematic heartbeat + memory stage */
+		dom.cinematicOverlay = document.getElementById('cinematicOverlay');
+		dom.cinematicDust = document.getElementById('cinematicDust');
+		dom.cinematicOverlayText = document.getElementById('cinematicOverlayText');
+		dom.cinematicMoon = dom.cinematicOverlay ? dom.cinematicOverlay.querySelector('.cinematic-moon') : null;
+		dom.cinematicMoonGlow = dom.cinematicOverlay ? dom.cinematicOverlay.querySelector('.cinematic-moon-glow') : null;
+
+		/* World-breathing targets used during the heartbeat sequence */
+		dom.worldBreathTargets = [dom.stars, dom.fireflies, dom.fogBack, dom.fogMiddle, dom.fogFront].filter(Boolean);
 
 		dom.liveRegion = createLiveRegion();
 	}
@@ -389,22 +488,406 @@
 		collectHeart(heart);
 	}
 
-	function collectHeart(heart) {
+	/* Gentle single-pulse haptic feedback */
+	function triggerHaptic() {
+		if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+			navigator.vibrate(CONFIG.HAPTIC_PULSE_MS);
+		}
+	}
+
+	/* ==================================================
+	   CINEMATIC HEARTBEAT + MEMORY SEQUENCE
+	   Tap -> freeze the whole world -> slow fade to near-
+	   black -> six slow heartbeats where the ENTIRE SCENE
+	   breathes (overlay, moon, stars, fog, fireflies all
+	   rise toward light together with the heart, then settle
+	   back into darkness) -> a held silence -> golden dust
+	   drifts in -> typewriter memory -> a calm reading pause
+	   -> dissolve -> fly to meter -> the world slowly wakes
+	   back up.
+	================================================== */
+	async function collectHeart(heart) {
 		heart.collected = true;
-		heart.element.classList.add('is-collected');
 		heart.element.setAttribute('aria-disabled', 'true');
 		heart.element.tabIndex = -1;
 
-		safePlay(dom.heartCollectSound);
-		spawnBurstParticles(heart);
-		flyHeartToMeter(heart);
+		setState({ interactionLocked: true });
+		stopAnimationLoop();
+		triggerHaptic();
+
+		/* Capture geometry now, before the heart moves/dissolves */
+		const startRect = heart.element.getBoundingClientRect();
+
+		freezeHeartInPlace(heart);
+		freezeWorld();
+		fadeAudio(dom.ambientMusic, 0.04, CINEMATIC.DARKEN_MS);
+
+		await darkenStage();
+		await playHeartbeatBeats(heart);
+		spawnCinematicDust(startRect);
+
+		await wait(CINEMATIC.PRE_TEXT_PAUSE_MS);
+		await revealCinematicMemory(heart.id);
+		await wait(random(CINEMATIC.TEXT_HOLD_MIN_MS, CINEMATIC.TEXT_HOLD_MAX_MS));
+		await hideCinematicMemory();
+
+		await releaseHeart(heart, startRect);
+		await clearStage();
 
 		setState({ heartsCollected: state.heartsCollected + 1 });
 		updateProgress();
+		pulseLoveMeter();
 		brightenWorld();
+		fadeAudio(dom.ambientMusic, 0.35, 900);
 		announce(`${state.heartsCollected} of ${state.totalHearts} hearts collected`);
 
-		checkCompletion();
+		if (!state.reducedMotion) startAnimationLoop();
+
+		if (state.heartsCollected >= state.totalHearts) {
+			checkCompletion();
+		} else {
+			setState({ interactionLocked: false });
+		}
+	}
+
+	/* --- Freeze: stop floating, hold heart visible above the stage --- */
+	function freezeHeartInPlace(heart) {
+		heart.element.classList.add('is-focused');
+		heart.element.style.transform = 'translate3d(0, 0, 0)';
+		if (hasGSAP()) {
+			window.gsap.set(heart.element, { scale: 1 });
+		}
+	}
+
+	/* --- World freeze: moon glow, stars, fireflies and fog all hold
+	   still and dim along with the stage, and only resume once the
+	   memory sequence has fully cleared. --- */
+	function freezeWorld() {
+		dom.body.classList.add('scene--frozen');
+	}
+
+	function unfreezeWorld() {
+		dom.body.classList.remove('scene--frozen');
+	}
+
+	/* --- Darken: fade the whole stage to near-black slowly (~1.1s),
+	   never a flash. The moon dims down to almost nothing at the same
+	   time, matched to the same slow curve. --- */
+	function darkenStage() {
+		if (!dom.cinematicOverlay) return Promise.resolve();
+		dom.cinematicOverlay.setAttribute('aria-hidden', 'false');
+
+		if (hasGSAP() && !state.reducedMotion) {
+			return new Promise((resolve) => {
+				const tl = window.gsap.timeline({ onComplete: resolve });
+				tl.to(dom.cinematicOverlay, {
+					opacity: CINEMATIC.STAGE_OPACITY,
+					duration: CINEMATIC.DARKEN_MS / 1000,
+					ease: 'power2.inOut'
+				}, 0);
+				if (dom.moon) {
+					tl.to(dom.moon, {
+						opacity: CINEMATIC.MOON_DARK_OPACITY,
+						duration: CINEMATIC.DARKEN_MS / 1000,
+						ease: 'power2.inOut'
+					}, 0);
+				}
+			});
+		}
+
+		dom.cinematicOverlay.style.transition = `opacity ${CINEMATIC.DARKEN_MS}ms ease-in-out`;
+		dom.cinematicOverlay.style.opacity = String(CINEMATIC.STAGE_OPACITY);
+		if (dom.moon) {
+			dom.moon.style.transition = `opacity ${CINEMATIC.DARKEN_MS}ms ease-in-out`;
+			dom.moon.style.opacity = String(CINEMATIC.MOON_DARK_OPACITY);
+		}
+		return wait(CINEMATIC.DARKEN_MS);
+	}
+
+	/* --- setWorldVisibility: the heart of the "world breathing" effect.
+	   `visibility` runs 0 (dark) -> 1 (peak of a breath). Tweens the
+	   cinematic overlay, the moon, and the stars/fog/fireflies group
+	   together over `durationMs`, all with the same smooth easing, so
+	   the whole scene rises and falls as a single breath. --- */
+	function setWorldVisibility(visibility, durationMs) {
+		const overlayOpacity = lerp(
+			CINEMATIC.STAGE_OPACITY,
+			CINEMATIC.STAGE_OPACITY * (1 - CINEMATIC.BEAT_PEAK_VISIBILITY),
+			visibility
+		);
+		const worldOpacity = lerp(CINEMATIC.WORLD_DARK_OPACITY, CINEMATIC.WORLD_PEAK_OPACITY, visibility);
+		const moonOpacity = lerp(CINEMATIC.MOON_DARK_OPACITY, CINEMATIC.MOON_PEAK_OPACITY, visibility);
+
+		if (state.reducedMotion || !hasGSAP()) {
+			if (dom.cinematicOverlay) dom.cinematicOverlay.style.opacity = String(overlayOpacity);
+			if (dom.moon) dom.moon.style.opacity = String(moonOpacity);
+			dom.worldBreathTargets.forEach((el) => { el.style.opacity = String(worldOpacity); });
+			return Promise.resolve();
+		}
+
+		return new Promise((resolve) => {
+			const duration = durationMs / 1000;
+			if (dom.cinematicOverlay) {
+				window.gsap.to(dom.cinematicOverlay, { opacity: overlayOpacity, duration, ease: 'sine.inOut' });
+			}
+			if (dom.moon) {
+				window.gsap.to(dom.moon, { opacity: moonOpacity, duration, ease: 'sine.inOut' });
+			}
+			if (dom.worldBreathTargets.length) {
+				window.gsap.to(dom.worldBreathTargets, { opacity: worldOpacity, duration, ease: 'sine.inOut' });
+			}
+			window.gsap.delayedCall(duration, resolve);
+		});
+	}
+
+	/* --- growHeartBeat: the heart's own half of the breath — a soft,
+	   slow scale up and back down (100% -> 108% -> 104% -> 100%),
+	   timed to run alongside the world's rise and fall. No elastic
+	   bounce, no snapping — just a gentle swell. --- */
+	function growHeartBeat(heart, riseMs, fallMs) {
+		if (state.reducedMotion || !hasGSAP()) return;
+		const el = heart.element;
+		const tl = window.gsap.timeline();
+		tl.to(el, {
+			scale: CINEMATIC.HEART_PEAK_SCALE,
+			duration: riseMs / 1000,
+			ease: 'sine.inOut'
+		});
+		tl.to(el, {
+			scale: CINEMATIC.HEART_SETTLE_SCALE,
+			duration: (fallMs * 0.45) / 1000,
+			ease: 'sine.inOut'
+		});
+		tl.to(el, {
+			scale: 1,
+			duration: (fallMs * 0.55) / 1000,
+			ease: 'sine.inOut'
+		});
+	}
+
+	/* --- Six slow heartbeats. Each one: the world rises from dark
+	   toward its peak (through the equivalent of ~35% / ~55% / ~70%
+	   visible), the thump sound plays right at the top of the breath,
+	   then everything settles back into darkness together, followed
+	   by a brief pause before the next beat begins. --- */
+	async function playHeartbeatBeats(heart) {
+		for (let i = 0; i < CINEMATIC.BEAT_COUNT; i += 1) {
+			growHeartBeat(heart, CINEMATIC.BEAT_RISE_MS, CINEMATIC.BEAT_FALL_MS);
+
+			await setWorldVisibility(1, CINEMATIC.BEAT_RISE_MS);
+			safePlay(dom.heartbeatSound);
+			triggerHaptic();
+
+			await setWorldVisibility(0, CINEMATIC.BEAT_FALL_MS);
+
+			if (i < CINEMATIC.BEAT_COUNT - 1) {
+				await wait(CINEMATIC.BEAT_PAUSE_MS);
+			}
+		}
+
+		/* A held beat of silence and stillness before anything else happens */
+		await wait(CINEMATIC.POST_BEATS_SILENCE_MS);
+	}
+
+	/* --- Dust: a few golden motes drift in around the held heart,
+	   only after the beats and the silence that follows them --- */
+	function spawnCinematicDust(originRect) {
+		if (!dom.cinematicDust || state.reducedMotion) return;
+
+		const count = randomInt(CINEMATIC.DUST_MIN, CINEMATIC.DUST_MAX);
+		const originX = originRect.left + originRect.width / 2;
+		const originY = originRect.top + originRect.height / 2;
+
+		for (let i = 0; i < count; i += 1) {
+			const particle = document.createElement('span');
+			particle.className = 'cinematic-dust-particle';
+			const size = random(2, 5);
+			particle.style.width = `${size}px`;
+			particle.style.height = `${size}px`;
+			particle.style.left = `${originX + random(-70, 70)}px`;
+			particle.style.top = `${originY + random(-70, 70)}px`;
+			dom.cinematicDust.appendChild(particle);
+
+			const drift = random(CINEMATIC.DUST_SETTLE_MS, CINEMATIC.DUST_SETTLE_MS + 500) / 1000;
+
+			if (hasGSAP()) {
+				window.gsap.fromTo(
+					particle,
+					{ opacity: 0, y: random(10, 24) },
+					{
+						opacity: random(0.4, 0.85),
+						y: random(-16, -6),
+						duration: drift,
+						delay: random(0, 0.3),
+						ease: 'power1.out'
+					}
+				);
+			} else {
+				particle.style.transition = `opacity ${drift}s ease-out, transform ${drift}s ease-out`;
+				requestAnimationFrame(() => {
+					particle.style.opacity = String(random(0.4, 0.85));
+					particle.style.transform = `translateY(${random(-16, -6)}px)`;
+				});
+			}
+		}
+	}
+
+	function clearCinematicDust() {
+		if (!dom.cinematicDust) return;
+		dom.cinematicDust.innerHTML = '';
+	}
+
+	/* --- Memory text: typewriter, alone on the dark stage --- */
+	function typewriterReveal(element, text) {
+		return new Promise((resolve) => {
+			element.textContent = '';
+
+			if (state.reducedMotion) {
+				element.textContent = text;
+				resolve();
+				return;
+			}
+
+			let i = 0;
+			const typeNext = () => {
+				if (i >= text.length) {
+					resolve();
+					return;
+				}
+				element.textContent += text[i];
+				i += 1;
+				setTimeout(typeNext, random(CONFIG.TYPEWRITER_MS_MIN, CONFIG.TYPEWRITER_MS_MAX));
+			};
+			typeNext();
+		});
+	}
+
+	async function revealCinematicMemory(heartId) {
+		/* Heart 20 (index 19) has no floating memory —
+		   its message lives in the existing final popup. */
+		if (heartId >= MEMORIES.length) return;
+		if (!dom.cinematicOverlayText) return;
+
+		// Moon fades in before the text types
+		if (dom.cinematicMoon && hasGSAP() && !state.reducedMotion) {
+			window.gsap.fromTo(
+				dom.cinematicMoon,
+				{
+					opacity: 0,
+					scale: 0.9
+				},
+				{
+					opacity: 1,
+					scale: 1,
+					duration: 2,
+					ease: "power2.out"
+				}
+			);
+
+			window.gsap.fromTo(
+				dom.cinematicMoonGlow,
+				{
+					opacity: 0
+				},
+				{
+					opacity: 1,
+					duration: 2,
+					ease: "power2.out"
+				}
+			);
+		}
+
+		const text = MEMORIES[heartId];
+
+		await typewriterReveal(dom.cinematicOverlayText, text);
+		dom.cinematicOverlayText.classList.add('is-visible');
+		announce(text);
+	}
+
+	async function hideCinematicMemory() {
+		if (!dom.cinematicOverlayText) return;
+		dom.cinematicOverlayText.classList.remove('is-visible');
+		await wait(CINEMATIC.TEXT_FADE_MS);
+		dom.cinematicOverlayText.textContent = '';
+
+		/* Fade out the cinematic moon after the memory text finishes */
+		if (dom.cinematicMoon && hasGSAP() && !state.reducedMotion) {
+			window.gsap.to(dom.cinematicMoon, {
+				opacity: 0,
+				duration: 1.2,
+				ease: "power2.inOut"
+			});
+
+			window.gsap.to(dom.cinematicMoonGlow, {
+				opacity: 0,
+				duration: 1.2,
+				ease: "power2.inOut"
+			});
+		}
+	}
+
+	/* --- Release: dust rises, heart dissolves into light, flies to meter --- */
+	async function releaseHeart(heart, startRect) {
+		clearCinematicDust();
+		safePlay(dom.magicSparkleSound);
+
+		heart.element.classList.add('is-dissolving');
+		await wait(CINEMATIC.DISSOLVE_MS * 0.4);
+
+		spawnBurstParticles(heart);
+		flyHeartToMeter(heart, startRect);
+		safePlay(dom.pianoNoteSound);
+
+		await wait(CINEMATIC.DISSOLVE_MS * 0.6);
+
+		heart.element.classList.add('is-collected');
+		heart.element.classList.remove('is-focused', 'is-dissolving');
+	}
+
+	/* --- Clear: the stage fades away and the whole world slowly wakes
+	   back up together — moon opacity, stars, fireflies and fog all
+	   resume in step with the overlay's fade, and the moon's glow
+	   returns on its own natural transition once .scene--frozen lifts,
+	   rather than anything snapping back instantly. --- */
+	function clearStage() {
+		if (!dom.cinematicOverlay) return Promise.resolve();
+		dom.cinematicOverlay.setAttribute('aria-hidden', 'true');
+		unfreezeWorld();
+
+		const duration = CINEMATIC.STAGE_CLEAR_MS;
+
+		if (hasGSAP() && !state.reducedMotion) {
+			return new Promise((resolve) => {
+				const tl = window.gsap.timeline({ onComplete: resolve });
+				tl.to(dom.cinematicOverlay, {
+					opacity: 0,
+					duration: duration / 1000,
+					ease: 'power2.inOut'
+				}, 0);
+				if (dom.moon) {
+					tl.to(dom.moon, {
+						opacity: 1,
+						duration: duration / 1000,
+						ease: 'power2.inOut',
+						clearProps: 'opacity'
+					}, 0);
+				}
+				if (dom.worldBreathTargets.length) {
+					tl.to(dom.worldBreathTargets, {
+						opacity: 1,
+						duration: duration / 1000,
+						ease: 'power2.inOut',
+						clearProps: 'opacity'
+					}, 0);
+				}
+			});
+		}
+
+		dom.cinematicOverlay.style.transition = `opacity ${duration}ms ease-in-out`;
+		dom.cinematicOverlay.style.opacity = '0';
+		if (dom.moon) dom.moon.style.opacity = '';
+		dom.worldBreathTargets.forEach((el) => { el.style.opacity = ''; });
+		return wait(duration);
 	}
 
 	/* ==================================================
@@ -457,11 +940,47 @@
 	}
 
 	/* ==================================================
+	   GOLDEN TRAIL SPARKLES DURING FLIGHT
+	================================================== */
+	function spawnHeartTrail(flightElement, durationSeconds) {
+		if (state.reducedMotion) return;
+
+		const trailInterval = setInterval(() => {
+			const rect = flightElement.getBoundingClientRect();
+			const particle = document.createElement('span');
+			particle.className = 'heart-trail-particle';
+			particle.style.left = `${rect.left + rect.width / 2}px`;
+			particle.style.top = `${rect.top + rect.height / 2}px`;
+			document.body.appendChild(particle);
+
+			if (hasGSAP()) {
+				window.gsap.to(particle, {
+					opacity: 0,
+					scale: 0.3,
+					y: '+=10',
+					duration: 0.6,
+					ease: 'power1.out',
+					onComplete: () => particle.remove()
+				});
+			} else {
+				particle.style.transition = 'opacity 0.6s ease-out, transform 0.6s ease-out';
+				requestAnimationFrame(() => {
+					particle.style.opacity = '0';
+					particle.style.transform = 'translateY(10px) scale(0.3)';
+				});
+				setTimeout(() => particle.remove(), 600);
+			}
+		}, CONFIG.TRAIL_INTERVAL_MS);
+
+		setTimeout(() => clearInterval(trailInterval), durationSeconds * 1000);
+	}
+
+	/* ==================================================
 	   HEART FLIGHT TO LOVE METER
 	================================================== */
-	function flyHeartToMeter(heart) {
+	function flyHeartToMeter(heart, precomputedStartRect) {
 		if (!dom.loveMeter) return;
-		const startRect = heart.element.getBoundingClientRect();
+		const startRect = precomputedStartRect || heart.element.getBoundingClientRect();
 		const endRect = dom.loveMeter.getBoundingClientRect();
 
 		const flight = document.createElement('div');
@@ -478,6 +997,9 @@
 		const duration = random(CONFIG.FLIGHT_DURATION_MIN, CONFIG.FLIGHT_DURATION_MAX);
 		const midX = (startRect.left + endRect.left) / 2 + random(-60, 60);
 		const midY = Math.min(startRect.top, endRect.top) - random(40, 100);
+
+		/* Soft golden trail follows the heart the whole flight */
+		spawnHeartTrail(flight, duration);
 
 		if (hasGSAP() && window.gsap.plugins && window.MotionPathPlugin) {
 			window.gsap.registerPlugin(window.MotionPathPlugin);
@@ -525,6 +1047,21 @@
 		}
 		if (dom.loveMeterTrack) {
 			dom.loveMeterTrack.setAttribute('aria-valuenow', String(state.heartsCollected));
+		}
+	}
+
+	/* Brief glass glow + traveling shine whenever the meter updates */
+	function pulseLoveMeter() {
+		if (dom.loveMeterGlass) {
+			dom.loveMeterGlass.classList.add('is-pulsing');
+			setTimeout(() => dom.loveMeterGlass.classList.remove('is-pulsing'), CONFIG.METER_PULSE_MS);
+		}
+		if (dom.progressFill) {
+			dom.progressFill.classList.remove('is-shining');
+			// eslint-disable-next-line no-unused-expressions
+			void dom.progressFill.offsetWidth; // restart animation
+			dom.progressFill.classList.add('is-shining');
+			setTimeout(() => dom.progressFill.classList.remove('is-shining'), 950);
 		}
 	}
 
@@ -625,20 +1162,29 @@
 	}
 
 	/* ==================================================
-	   FINAL SEQUENCE
+	   FINAL SEQUENCE (Heart 20)
 	================================================== */
 	async function triggerFinalSequence() {
 		setState({ interactionLocked: true });
 
+		/* Darken the world slightly longer before the big reveal */
+		dom.body.classList.add('scene--finale');
+		await wait(CONFIG.FINALE_DARKEN_MS);
+		dom.body.classList.remove('scene--finale');
+
 		const pauseDuration = randomInt(CONFIG.FINAL_PAUSE_MIN, CONFIG.FINAL_PAUSE_MAX);
-		await wait(pauseDuration);
 
 		safePlay(dom.finalMagicSound);
 
 		dom.body.classList.add('scene--bright');
 		if (dom.loveMeter) dom.loveMeter.classList.add('is-complete');
-		document.documentElement.style.setProperty('--glow-intensity', '1.8');
-		generateParticles(10);
+		document.documentElement.style.setProperty('--glow-intensity', '2.0');
+
+		/* Moon brightens, golden particles surround the whole scene */
+		if (dom.moon) dom.moon.style.filter = 'brightness(1.4)';
+		generateParticles(18);
+
+		await wait(pauseDuration);
 
 		await revealPopup();
 	}
