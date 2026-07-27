@@ -157,6 +157,7 @@ body {
 		radial-gradient(ellipse 80% 50% at 50% 15%, rgba(34, 48, 94, 0.55), transparent 60%),
 		radial-gradient(ellipse 60% 40% at 20% 80%, rgba(19, 26, 61, 0.6), transparent 65%),
 		linear-gradient(180deg, var(--color-midnight) 0%, var(--color-midnight-deep) 55%, #030412 100%);
+	transition: filter 1.4s var(--ease-luxury);
 }
 
 /* ==========================================================
@@ -173,6 +174,7 @@ body {
 	filter: blur(30px);
 	animation: moonGlowBreathe 10s var(--ease-breathe) infinite;
 	will-change: opacity, transform;
+	transition: opacity 1.2s var(--ease-luxury);
 }
 
 .moon {
@@ -183,10 +185,11 @@ body {
 	height: clamp(120px, 14vw, 190px);
 	transform: translateX(-50%);
 	animation: moonBreathe 9s ease-in-out infinite;
-	will-change: transform;
+	will-change: transform, opacity;
 	display: flex;
 	align-items: center;
 	justify-content: center;
+	transition: filter 1.4s var(--ease-luxury), opacity 1.2s var(--ease-luxury);
 }
 
 .moon__image {
@@ -199,6 +202,7 @@ body {
 		drop-shadow(0 0 25px rgba(255,255,255,.35))
 		drop-shadow(0 0 60px rgba(233,211,163,.30))
 		drop-shadow(0 0 110px rgba(233,211,163,.18));
+	transition: filter 1.2s var(--ease-luxury);
 }
 
 .moon__sparkle {
@@ -234,6 +238,7 @@ body {
 .stars {
 	position: absolute;
 	inset: 0;
+	transition: opacity 1.2s var(--ease-luxury);
 }
 
 .star {
@@ -255,6 +260,7 @@ body {
 .particles {
 	position: absolute;
 	inset: 0;
+	transition: opacity 1.2s var(--ease-luxury);
 }
 
 .particle {
@@ -281,6 +287,7 @@ body {
 .fireflies {
 	position: absolute;
 	inset: 0;
+	transition: opacity 1.2s var(--ease-luxury);
 }
 
 .firefly {
@@ -320,6 +327,7 @@ body {
 	height: 40vh;
 	filter: blur(40px);
 	pointer-events: none;
+	transition: opacity 1.2s var(--ease-luxury);
 }
 
 .fog--back {
@@ -450,6 +458,7 @@ body {
 	flex-direction: column;
 	align-items: center;
 	gap: var(--space-sm);
+	transition: box-shadow 0.8s var(--ease-luxury);
 }
 
 .love-meter__title {
@@ -506,6 +515,27 @@ body {
 
 .love-meter.is-complete .love-meter__fill {
 	box-shadow: 0 0 28px rgba(233, 211, 163, 0.85);
+}
+
+/* --- brief glow pulse + traveling shine on each collection --- */
+.love-meter__glass.is-pulsing {
+	box-shadow: var(--shadow-soft), var(--shadow-glow-gold), var(--shadow-inset);
+}
+
+.love-meter__fill.is-shining::before {
+	content: '';
+	position: absolute;
+	inset: 0;
+	width: 30%;
+	background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.85), transparent);
+	filter: blur(1px);
+	animation: meterShineTravel 0.9s var(--ease-luxury);
+}
+
+@keyframes meterShineTravel {
+	0% { transform: translateX(-120%); opacity: 0; }
+	15% { opacity: 1; }
+	100% { transform: translateX(320%); opacity: 0; }
 }
 
 /* ==========================================================
@@ -591,6 +621,201 @@ body {
 	box-shadow: 0 0 8px rgba(233, 211, 163, 0.8);
 	pointer-events: none;
 	will-change: transform, opacity;
+}
+
+/* ==========================================================
+   HEART FLIGHT — GOLDEN TRAIL SPARKLES
+========================================================== */
+.heart-trail-particle {
+	position: fixed;
+	width: 4px;
+	height: 4px;
+	border-radius: 50%;
+	background: radial-gradient(circle, var(--color-champagne-bright), rgba(244, 228, 187, 0));
+	box-shadow: 0 0 10px rgba(233, 211, 163, 0.85), 0 0 18px rgba(232, 169, 192, 0.35);
+	pointer-events: none;
+	z-index: 19;
+	will-change: transform, opacity;
+}
+
+/* ==========================================================
+   CINEMATIC HEARTBEAT + MEMORY STAGE
+   A true "world breathing" sequence: the near-black overlay,
+   the moon, the stars, the fog and fireflies all rise and
+   fall together with every heartbeat — never a flash, never
+   a blink. Only the held heart and (later) the memory text
+   sit above this breathing darkness. Beat-by-beat opacity is
+   driven from JS (see CINEMATIC config + setWorldVisibility)
+   so the whole scene moves as one.
+========================================================== */
+.cinematic-overlay {
+	position: fixed;
+	inset: 0;
+	z-index: 16;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: #020208;
+	opacity: 0;
+	pointer-events: none;
+	will-change: opacity;
+}
+
+/* --- Cinematic Moon within the overlay --- */
+.cinematic-moon-glow {
+	position: absolute;
+	top: 16%;
+	left: 50%;
+	width: 420px;
+	height: 420px;
+	transform: translateX(-50%);
+	border-radius: 50%;
+	background: radial-gradient(
+		circle,
+		rgba(255, 255, 255, .30) 0%,
+		rgba(233, 211, 163, .18) 35%,
+		transparent 72%
+	);
+	filter: blur(55px);
+	opacity: 0;
+	transition: opacity 1.5s ease;
+	pointer-events: none;
+}
+
+.cinematic-moon {
+	position: absolute;
+	top: 14%;
+	left: 50%;
+	width: 180px;
+	height: 180px;
+	transform: translateX(-50%);
+	opacity: 0;
+	transition:
+		opacity 1.4s ease,
+		transform 8s ease;
+	z-index: 1;
+	pointer-events: none;
+}
+
+.cinematic-moon img {
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+	filter:
+		drop-shadow(0 0 25px rgba(255, 255, 255, .45))
+		drop-shadow(0 0 90px rgba(233, 211, 163, .35));
+}
+
+.cinematic-overlay__dust {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+}
+
+.cinematic-overlay__text {
+	position: absolute;
+	left: 50%;
+	top: 64%;
+	transform: translate(-50%, -50%);
+	font-family: var(--font-display);
+	font-style: italic;
+	font-weight: 500;
+	font-size: clamp(1.3rem, 3vw, 2.25rem);
+	letter-spacing: 0.04em;
+	line-height: 1.65;
+	text-align: center;
+	max-width: 26ch;
+	color: var(--color-moon-white);
+	text-shadow:
+		0 0 20px rgba(251, 246, 234, 0.5),
+		0 0 48px rgba(233, 211, 163, 0.32);
+	opacity: 0;
+	transition: opacity 0.7s var(--ease-luxury);
+	z-index: 2;
+}
+
+.cinematic-overlay__text.is-visible {
+	opacity: 1;
+}
+
+/* --- Golden dust that drifts in after the silence following the beats --- */
+.cinematic-dust-particle {
+	position: fixed;
+	border-radius: 50%;
+	background: radial-gradient(circle, var(--color-champagne-bright), transparent 70%);
+	box-shadow: 0 0 12px rgba(233, 211, 163, 0.85);
+	pointer-events: none;
+	z-index: 17;
+	opacity: 0;
+	will-change: transform, opacity;
+}
+
+/* --- The single heart held on stage through the whole sequence.
+   Scale is driven by GSAP during the breathing beats, so only
+   filter is left as a CSS transition here. --- */
+.heart.is-focused {
+	z-index: 17;
+	animation: none;
+	transition: filter 0.32s var(--ease-soft);
+}
+
+.heart.is-dissolving {
+	transition: opacity 1s var(--ease-luxury), filter 1s var(--ease-luxury), scale 1s var(--ease-luxury);
+	opacity: 0;
+	filter: blur(10px) brightness(2.2);
+	scale: 1.5;
+}
+
+/* ==========================================================
+   WORLD FREEZE — everything else holds still while the
+   heartbeat/memory sequence plays on stage. During the six
+   breathing beats, opacity of the moon, stars, fireflies and
+   fog is animated directly from JS in sync with the overlay
+   (see setWorldVisibility in chapter5.js); these rules cover
+   the instants just outside that window (initial freeze-in,
+   the dust/text hold, and the non-GSAP fallback).
+========================================================== */
+body.scene--frozen .moon-glow{
+    opacity:.35;
+}
+
+body.scene--frozen .moon {
+	animation-play-state: paused;
+}
+
+body.scene--frozen .moon__image {
+	filter:
+		drop-shadow(0 0 6px rgba(255, 255, 255, .12))
+		drop-shadow(0 0 14px rgba(233, 211, 163, .08));
+}
+
+body.scene--frozen .stars,
+body.scene--frozen .fireflies,
+body.scene--frozen .particles {
+	opacity: 0.05;
+}
+
+body.scene--frozen .star,
+body.scene--frozen .firefly,
+body.scene--frozen .particle {
+	animation-play-state: paused;
+}
+
+body.scene--frozen .fog {
+	animation-play-state: paused;
+	opacity: 0.15;
+}
+
+/* ==========================================================
+   FINALE DARKENING (Heart 20 — before the world brightens)
+========================================================== */
+body.scene--finale .sky {
+	filter: brightness(0.62) saturate(1.15);
+}
+
+body.scene--finale .moon-glow {
+	transition: opacity 1.4s var(--ease-luxury);
+	opacity: 0.55;
 }
 
 /* ==========================================================
@@ -859,6 +1084,15 @@ body.scene--warm .sky {
 	.heart-field {
 		min-height: 50vh;
 	}
+	.cinematic-moon-glow {
+		width: 280px;
+		height: 280px;
+	}
+	.cinematic-moon {
+		width: 120px;
+		height: 120px;
+		top: 16%;
+	}
 }
 
 @media (max-width: 600px) {
@@ -867,6 +1101,16 @@ body.scene--warm .sky {
 	}
 	.love-meter__glass {
 		padding: var(--space-sm) var(--space-md);
+	}
+	.cinematic-moon-glow {
+		width: 200px;
+		height: 200px;
+		top: 20%;
+	}
+	.cinematic-moon {
+		width: 90px;
+		height: 90px;
+		top: 22%;
 	}
 }
 
@@ -877,6 +1121,19 @@ body.scene--warm .sky {
 	.music-toggle {
 		bottom: var(--space-sm);
 		right: var(--space-sm);
+	}
+	.cinematic-overlay__text {
+		max-width: 24ch;
+	}
+	.cinematic-moon-glow {
+		width: 160px;
+		height: 160px;
+		top: 22%;
+	}
+	.cinematic-moon {
+		width: 70px;
+		height: 70px;
+		top: 24%;
 	}
 }
 
@@ -900,6 +1157,20 @@ body.scene--warm .sky {
 	.popup__continue {
 		width: 100%;
 	}
+	.cinematic-overlay__text {
+		font-size: 1.2rem;
+		max-width: 22ch;
+	}
+	.cinematic-moon-glow {
+		width: 120px;
+		height: 120px;
+		top: 24%;
+	}
+	.cinematic-moon {
+		width: 55px;
+		height: 55px;
+		top: 26%;
+	}
 }
 
 /* ==========================================================
@@ -919,6 +1190,20 @@ body.scene--warm .sky {
 	}
 	.love-meter__fill::after {
 		display: none;
+	}
+	.love-meter__fill.is-shining::before {
+		display: none;
+	}
+	.heart.is-dissolving {
+		transition: opacity 0.001ms linear !important;
+	}
+	.cinematic-overlay,
+	.cinematic-overlay__text {
+		transition: opacity 0.001ms linear !important;
+	}
+	.cinematic-moon-glow,
+	.cinematic-moon {
+		transition: opacity 0.001ms linear !important;
 	}
 }
 
