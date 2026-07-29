@@ -76,7 +76,7 @@
 	     AUDIO
 	================================================ -->
 	<audio id="ambientMusic" preload="auto" loop class="hidden-audio">
-		<source src="audio/chapter5-ambient.mp3" type="audio/mpeg">
+		<source src="audio/chapter5.mp3" type="audio/mpeg">
 	</audio>
 	<audio id="heartCollectSound" preload="auto" class="hidden-audio">
 		<source src="audio/heart-collect.mp3" type="audio/mpeg">
@@ -89,7 +89,7 @@
 	</audio>
 	<!-- NEW: layered collection-sequence audio (heartbeat -> chime -> piano -> ambient return) -->
 	<audio id="heartbeatSound" preload="auto" class="hidden-audio">
-		<source src="heartbeat.mp3" type="audio/mpeg">
+		<source src="audio/heartbeat.mp3" type="audio/mpeg">
 	</audio>
 	<audio id="pianoNoteSound" preload="auto" class="hidden-audio">
 		<source src="audio/piano-note.mp3" type="audio/mpeg">
@@ -133,7 +133,7 @@
 		============================================ -->
 		<section class="love-meter" id="loveMeter" aria-labelledby="loveMeterTitle">
 			<div class="love-meter__glass">
-				<h2 class="love-meter__title" id="loveMeterTitle">Love Meter</h2>
+				<h2 class="love-meter__title" id="loveMeterTitle">Your Universe Love</h2>
 				<div class="love-meter__track" id="loveMeterTrack" role="progressbar" aria-valuemin="0" aria-valuemax="20" aria-valuenow="0" aria-labelledby="loveMeterTitle" aria-describedby="progressText">
 					<div class="love-meter__fill" id="progressFill"></div>
 				</div>
@@ -164,7 +164,8 @@
 	>
 		<div class="cinematic-moon-glow"></div>
 		<div class="cinematic-moon">
-			<img src="m.png" alt="">
+			<img src="images/m.png" class="cinematic-moon-white" alt="">
+			<img src="images/pinkheart.png" class="cinematic-moon-pink" alt="">
 		</div>
 		<div class="cinematic-overlay__dust" id="cinematicDust" aria-hidden="true"></div>
 		<p class="cinematic-overlay__text" id="cinematicOverlayText"></p>
