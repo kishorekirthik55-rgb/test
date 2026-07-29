@@ -46,7 +46,7 @@
 		DARKEN_MS: 1100,           // 0% -> near-black, slow fade (not a flash)
 		STAGE_OPACITY: 0.97,       // near-black baseline, never fully flat black
 
-		BEAT_COUNT: 6,             // six slow heartbeats
+		BEAT_COUNT: 4,             // six slow heartbeats
 		BEAT_PEAK_VISIBILITY: 0.72,// how much of the world becomes visible at the top of each beat
 		BEAT_RISE_MS: 1000,         // dark -> peak (passes through ~35% / ~55% / ~70%)
 		BEAT_FALL_MS: 1000,         // peak -> dark again
@@ -84,26 +84,50 @@
 	   Heart 20's message lives in the existing #messageCard
 	   popup, so only hearts 0–18 (Heart 1–19) get an entry here.
 	================================================== */
-	const MEMORIES = [
-		'Every heartbeat carried a memory of you.',
-		'Even the moon seemed brighter on the nights I thought of you.',
-		'The stars quietly became witnesses to every wish I made for you.',
-		'Your smile slowly became my favorite place in the world.',
-		"Some meetings feel like luck... ours felt like destiny.",
-		"If I could borrow time, I'd spend every second beside you.",
-		'Every gentle breeze somehow reminded me of your presence.',
-		'You appeared in my dreams long before this moment.',
-		'Every love song suddenly started making sense because of you.',
-		'Some feelings are simply too beautiful to fit into words.',
-		'You made ordinary days feel extraordinary.',
-		'Some letters are written with ink... this one was written with my heart.',
-		'You gave my heart butterflies without even trying.',
-		'Hope always had your smile hidden inside it.',
-		'The smallest moments with you became my biggest memories.',
-		"If every shooting star granted one wish... I spent them all on you.",
-		'Thank you for becoming such a beautiful chapter of my story.',
-		'Hidden inside every heart was another little piece of mine.',
-		"You're getting closer to the reason all of this exists."
+	const MEMORIES_EN = [
+		'Every laugh with you became a memory I will always cherish.',
+		'The most beautiful adventures always seemed to begin with you.',
+		'Some people slowly become an irreplaceable part of our lives.',
+		'Every inside joke reminded me how fortunate I was to know you.',
+		'You turned ordinary moments into unforgettable memories.',
+		'Some people enter your life... you made it brighter just by staying.',
+		'Every smile we shared made the world feel a little warmer.',
+		'The happiest moments somehow always happened when you were around.',
+		'No matter where life takes us, these memories will always remain.',
+		'Every chapter of my journey became brighter because you were in it.',
+		'Thank you for standing beside me through every high and low.',
+		'Some bonds are simply meant to last a lifetime.',
+		'The smallest moments with you became my favourite stories.',
+		'Every journey felt more meaningful because you were there.',
+		'You became one of the most beautiful reasons behind so many memories.',
+		'Life gave me countless moments... knowing you became one of the best.',
+		'Even the simplest days became special because you were part of them.',
+		'Some memories never fade because they were created with someone truly special.',
+		'Every heartbeat of this journey carries a beautiful piece of you.',
+		"You're getting closer to discovering why this entire journey was created just for you."
+	];
+
+	const MEMORIES_TA = [
+		'உன் வருகைக்குப் பிறகு... என் நினைவுகளுக்கே ஒரு புதிய அழகு கிடைத்தது.',
+		'சில மனிதர்கள் மட்டும் போதும்... வாழ்க்கையே மாறிப்போக.',
+		'உன்னுடன் கழிந்த ஒவ்வொரு நொடியும்... இன்னும் என் மனதில் புன்னகைக்கிறது.',
+		'சில சந்திப்புகள் காரணமின்றி நடக்கும்... ஆனால் அவை வாழ்நாள் முழுவதும் நினைவாக நிற்கும்.',
+		'நாம் பகிர்ந்த சிறு தருணங்களே... இன்று பெரிய பொக்கிஷங்களாகிவிட்டன.',
+		'நேரம் பலவற்றை மாற்றிவிடும்... ஆனால் சில நினைவுகளை ஒருபோதும் மாற்ற முடியாது.',
+		'உன் புன்னகை இருந்த இடங்களில்... இன்னும் என் நினைவுகள் சுற்றித் திரிகின்றன.',
+		'சாதாரணமான நாட்களுக்குக் கூட... நீ வந்ததால் ஒரு சிறப்பு கிடைத்தது.',
+		'சில தருணங்கள் முடிந்துவிடும்... ஆனால் அவை விட்டுச் செல்லும் நினைவுகள் என்றும் முடிவதில்லை.',
+		'என் வாழ்க்கையின் பல அழகான கதைகளில்... நீயும் ஒரு அழகான அத்தியாயம்.',
+		'எந்த சூழலிலும் அருகில் இருந்ததற்கு... என் மனமார்ந்த நன்றி.',
+		'சில பந்தங்கள்... வார்த்தைகளால் விளக்க முடியாத அளவிற்கு அழகானவை.',
+		'ஒன்றாக நடந்த சிறிய பயணங்களே... இன்று பெரிய நினைவுகளாக வாழ்கின்றன.',
+		'சிரித்துக் கொண்டே கழிந்த அந்த நாட்கள்... காலம் கடந்தாலும் மனதில் பசுமையாகவே இருக்கின்றன.',
+		'வாழ்க்கை பலரை அறிமுகப்படுத்தியது... ஆனால் சிலரை மட்டும் மறக்க முடியவில்லை.',
+		'ஒவ்வொரு நினைவையும் திரும்பிப் பார்க்கும் போது... தானாகவே ஒரு புன்னகை மலர்கிறது.',
+		'சாதாரணமான தருணங்களையே... மறக்க முடியாத அனுபவங்களாக மாற்றியவள் நீ.',
+		'காலம் நகர்ந்தாலும்... சில நினைவுகள் மட்டும் அதே இடத்தில் காத்திருக்கின்றன.',
+		'இந்த பயணத்தின் ஒவ்வொரு அடியிலும்... உன் இருப்பின் அழகான தடம் பதிந்திருக்கிறது.',
+		'இன்னும் சில நொடிகளில்... இந்தப் பயணம் ஏன் உனக்காக உருவானது என்பதை நீ உணர்வாய்.'
 	];
 
 	/* ==================================================
@@ -186,6 +210,10 @@
 		dom.cinematicOverlayText = document.getElementById('cinematicOverlayText');
 		dom.cinematicMoon = dom.cinematicOverlay ? dom.cinematicOverlay.querySelector('.cinematic-moon') : null;
 		dom.cinematicMoonGlow = dom.cinematicOverlay ? dom.cinematicOverlay.querySelector('.cinematic-moon-glow') : null;
+
+		/* Step 1: Add moon references */
+		dom.cinematicMoonWhite = document.querySelector(".cinematic-moon-white");
+		dom.cinematicMoonPink = document.querySelector(".cinematic-moon-pink");
 
 		/* World-breathing targets used during the heartbeat sequence */
 		dom.worldBreathTargets = [dom.stars, dom.fireflies, dom.fogBack, dom.fogMiddle, dom.fogFront].filter(Boolean);
@@ -534,8 +562,13 @@
 		spawnCinematicDust(startRect);
 
 		await wait(CINEMATIC.PRE_TEXT_PAUSE_MS);
-		await revealCinematicMemory(heart.id);
+		await revealCinematicMemory(
+			MEMORIES_EN[heart.id],
+			MEMORIES_TA[heart.id]
+		);
 		await wait(random(CINEMATIC.TEXT_HOLD_MIN_MS, CINEMATIC.TEXT_HOLD_MAX_MS));
+		await wait(3000);
+		await transformMoon();
 		await hideCinematicMemory();
 
 		await releaseHeart(heart, startRect);
@@ -583,6 +616,21 @@
 	function darkenStage() {
 		if (!dom.cinematicOverlay) return Promise.resolve();
 		dom.cinematicOverlay.setAttribute('aria-hidden', 'false');
+
+		/* Step 4: Reset moon to initial state when overlay opens */
+		if (dom.cinematicMoonWhite && dom.cinematicMoonPink) {
+			if (hasGSAP()) {
+				window.gsap.set(dom.cinematicMoonWhite, {
+					opacity: 1
+				});
+				window.gsap.set(dom.cinematicMoonPink, {
+					opacity: 0
+				});
+			} else {
+				dom.cinematicMoonWhite.style.opacity = "1";
+				dom.cinematicMoonPink.style.opacity = "0";
+			}
+		}
 
 		if (hasGSAP() && !state.reducedMotion) {
 			return new Promise((resolve) => {
@@ -752,34 +800,8 @@
 	}
 
 	/* --- Memory text: typewriter, alone on the dark stage --- */
-	function typewriterReveal(element, text) {
-		return new Promise((resolve) => {
-			element.textContent = '';
-
-			if (state.reducedMotion) {
-				element.textContent = text;
-				resolve();
-				return;
-			}
-
-			let i = 0;
-			const typeNext = () => {
-				if (i >= text.length) {
-					resolve();
-					return;
-				}
-				element.textContent += text[i];
-				i += 1;
-				setTimeout(typeNext, random(CONFIG.TYPEWRITER_MS_MIN, CONFIG.TYPEWRITER_MS_MAX));
-			};
-			typeNext();
-		});
-	}
-
-	async function revealCinematicMemory(heartId) {
-		/* Heart 20 (index 19) has no floating memory —
-		   its message lives in the existing final popup. */
-		if (heartId >= MEMORIES.length) return;
+	async function revealCinematicMemory(englishText, tamilText) {
+		if (englishText === undefined || tamilText === undefined) return;
 		if (!dom.cinematicOverlayText) return;
 
 		// Moon fades in before the text types
@@ -811,11 +833,112 @@
 			);
 		}
 
-		const text = MEMORIES[heartId];
+		// --- Show English first ---
+		dom.cinematicOverlayText.classList.remove('tamil-text');
+		dom.cinematicOverlayText.innerHTML = '';
+		dom.cinematicOverlayText.style.opacity = '1';
+		await typeWriter(dom.cinematicOverlayText, englishText);
 
-		await typewriterReveal(dom.cinematicOverlayText, text);
+		// Hold English for 3 seconds
+		await wait(3000);
+
+		// Fade out English
+		if (hasGSAP() && !state.reducedMotion) {
+			await new Promise((resolve) => {
+				window.gsap.to(dom.cinematicOverlayText, {
+					opacity: 0,
+					duration: 0.8,
+					ease: 'power2.inOut',
+					onComplete: resolve
+				});
+			});
+		} else {
+			dom.cinematicOverlayText.style.transition = 'opacity 0.8s ease-in-out';
+			dom.cinematicOverlayText.style.opacity = '0';
+			await wait(800);
+		}
+
+		await wait(300);
+
+		// --- Show Tamil ---
+		dom.cinematicOverlayText.classList.add('tamil-text');
+		dom.cinematicOverlayText.innerHTML = '';
+		
+		if (hasGSAP()) {
+			window.gsap.set(dom.cinematicOverlayText, { opacity: 1 });
+		} else {
+			dom.cinematicOverlayText.style.opacity = '1';
+		}
+
+		await typeWriter(dom.cinematicOverlayText, tamilText);
+
+		// Hold Tamil for 3.5 seconds
+		await wait(3500);
+
 		dom.cinematicOverlayText.classList.add('is-visible');
-		announce(text);
+		announce(englishText + ' ' + tamilText);
+	}
+
+	function typeWriter(element, text) {
+		return new Promise((resolve) => {
+			element.textContent = '';
+
+			if (state.reducedMotion) {
+				element.textContent = text;
+				resolve();
+				return;
+			}
+
+			let i = 0;
+			const typeNext = () => {
+				if (i >= text.length) {
+					resolve();
+					return;
+				}
+				element.textContent += text[i];
+				i += 1;
+				setTimeout(typeNext, random(CONFIG.TYPEWRITER_MS_MIN, CONFIG.TYPEWRITER_MS_MAX));
+			};
+			typeNext();
+		});
+	}
+
+	/* --- transformMoon: crossfades the realistic white moon into the
+	   cute pink heart moon, with a gentle scale swell, once the memory
+	   text has finished and the reader has had a moment to sit with it. --- */
+	async function transformMoon() {
+		const whiteMoon = document.querySelector('.cinematic-moon-white');
+		const pinkMoon = document.querySelector('.cinematic-moon-pink');
+
+		if (!whiteMoon || !pinkMoon) return;
+
+		if (state.reducedMotion || !hasGSAP()) {
+			whiteMoon.style.opacity = '0';
+			pinkMoon.style.opacity = '1';
+			return;
+		}
+
+		return new Promise((resolve) => {
+			const tl = window.gsap.timeline({ onComplete: resolve });
+
+			tl.to(whiteMoon, {
+				opacity: 0,
+				duration: 1.5,
+				ease: 'power2.inOut'
+			});
+
+			tl.to(pinkMoon, {
+				opacity: 1,
+				duration: 1.5,
+				ease: 'power2.inOut'
+			}, '<');
+
+			tl.fromTo(pinkMoon,
+				{ scale: 0.96 },
+				{ scale: 1.03, duration: 1.5, ease: 'sine.inOut' },
+				'<'
+			);
+		});
 	}
 
 	async function hideCinematicMemory() {
@@ -823,6 +946,7 @@
 		dom.cinematicOverlayText.classList.remove('is-visible');
 		await wait(CINEMATIC.TEXT_FADE_MS);
 		dom.cinematicOverlayText.textContent = '';
+		dom.cinematicOverlayText.classList.remove('tamil-text');
 
 		/* Fade out the cinematic moon after the memory text finishes */
 		if (dom.cinematicMoon && hasGSAP() && !state.reducedMotion) {
@@ -867,6 +991,21 @@
 		if (!dom.cinematicOverlay) return Promise.resolve();
 		dom.cinematicOverlay.setAttribute('aria-hidden', 'true');
 		unfreezeWorld();
+
+		/* Step 3: Reset moon for next heart */
+		if (dom.cinematicMoonWhite && dom.cinematicMoonPink) {
+			if (hasGSAP()) {
+				window.gsap.set(dom.cinematicMoonWhite, {
+					opacity: 1
+				});
+				window.gsap.set(dom.cinematicMoonPink, {
+					opacity: 0
+				});
+			} else {
+				dom.cinematicMoonWhite.style.opacity = "1";
+				dom.cinematicMoonPink.style.opacity = "0";
+			}
+		}
 
 		/* Fix 4 — Emergency stop at the end of the cinematic sequence */
 		if (dom.heartbeatSound) {
@@ -1477,5 +1616,5 @@
 		document.addEventListener('DOMContentLoaded', init);
 	} else {
 		init();
-	}
+	} 
 })();
