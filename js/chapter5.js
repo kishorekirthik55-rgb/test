@@ -551,7 +551,13 @@
 		fadeAudio(dom.ambientMusic, 0.04, CINEMATIC.DARKEN_MS);
 
 		await darkenStage();
-		await playHeartbeatBeats(heart);
+		
+		/* Wrap heartbeat in try-catch to prevent errors from breaking the sequence */
+		try {
+			await playHeartbeatBeats(heart);
+		} catch (e) {
+			console.error('Heartbeat playback error:', e);
+		}
 
 		/* Fix 2 — Stop heartbeat immediately after the last beat */
 		if (dom.heartbeatSound) {
@@ -568,7 +574,14 @@
 		);
 		await wait(random(CINEMATIC.TEXT_HOLD_MIN_MS, CINEMATIC.TEXT_HOLD_MAX_MS));
 		await wait(3000);
-		await transformMoon();
+		
+		/* Wrap transformMoon in try-catch to prevent errors from breaking the sequence */
+		try {
+			await transformMoon();
+		} catch (e) {
+			console.error('Moon transform error:', e);
+		}
+		
 		await hideCinematicMemory();
 
 		await releaseHeart(heart, startRect);
@@ -731,12 +744,12 @@
 
 			await setWorldVisibility(1, CINEMATIC.BEAT_RISE_MS);
 
-			/* Fix 3 — Make sure each beat restarts cleanly */
+			/* Fix 3 — Use safePlay instead of await, and make sure each beat restarts cleanly */
 			if (dom.heartbeatSound) {
 				dom.heartbeatSound.pause();
 				dom.heartbeatSound.currentTime = 0;
 				dom.heartbeatSound.volume = 1.0;
-				await dom.heartbeatSound.play();
+				safePlay(dom.heartbeatSound); // Don't await - use safePlay
 			}
 			triggerHaptic();
 
