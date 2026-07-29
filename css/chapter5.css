@@ -698,6 +698,8 @@ body {
 }
 
 .cinematic-moon img {
+	position: absolute;
+	inset: 0;
 	width: 100%;
 	height: 100%;
 	object-fit: contain;
@@ -706,12 +708,21 @@ body {
 		drop-shadow(0 0 90px rgba(233, 211, 163, .35));
 }
 
+.cinematic-moon-white {
+	opacity: 1;
+}
+
+.cinematic-moon-pink {
+	opacity: 0;
+}
+
 .cinematic-overlay__dust {
 	position: absolute;
 	inset: 0;
 	pointer-events: none;
 }
 
+/* --- Memory text styling - base styles for both languages --- */
 .cinematic-overlay__text {
 	position: absolute;
 	left: 50%;
@@ -720,18 +731,27 @@ body {
 	font-family: var(--font-display);
 	font-style: italic;
 	font-weight: 500;
-	font-size: clamp(1.3rem, 3vw, 2.25rem);
-	letter-spacing: 0.04em;
-	line-height: 1.65;
+	/* Smaller text - works well for both English and Tamil */
+	font-size: clamp(0.95rem, 1.8vw, 1.55rem);
+	line-height: 1.8;
+	letter-spacing: 0.02em;
+	/* Wider text box so Tamil wraps less */
+	max-width: 38ch;
 	text-align: center;
-	max-width: 26ch;
 	color: var(--color-moon-white);
 	text-shadow:
-		0 0 20px rgba(251, 246, 234, 0.5),
-		0 0 48px rgba(233, 211, 163, 0.32);
+		0 0 12px rgba(251, 246, 234, 0.35),
+		0 0 30px rgba(233, 211, 163, 0.20);
 	opacity: 0;
 	transition: opacity 0.7s var(--ease-luxury);
 	z-index: 2;
+}
+
+/* --- Tamil-specific styling - smaller and wider for Tamil script --- */
+.cinematic-overlay__text.tamil-text {
+	font-size: clamp(0.85rem, 1.6vw, 1.35rem);
+	line-height: 1.9;
+	max-width: 40ch;
 }
 
 .cinematic-overlay__text.is-visible {
@@ -1125,6 +1145,9 @@ body.scene--warm .sky {
 	.cinematic-overlay__text {
 		max-width: 24ch;
 	}
+	.cinematic-overlay__text.tamil-text {
+		max-width: 26ch;
+	}
 	.cinematic-moon-glow {
 		width: 160px;
 		height: 160px;
@@ -1160,6 +1183,10 @@ body.scene--warm .sky {
 	.cinematic-overlay__text {
 		font-size: 1.2rem;
 		max-width: 22ch;
+	}
+	.cinematic-overlay__text.tamil-text {
+		font-size: 1.0rem;
+		max-width: 24ch;
 	}
 	.cinematic-moon-glow {
 		width: 120px;
