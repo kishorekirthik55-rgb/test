@@ -73,6 +73,12 @@
 
 	/* Glow intensity */
 	--glow-intensity: 1;
+
+	/* Safe-area fallbacks (used only inside mobile media queries below) */
+	--safe-top: env(safe-area-inset-top, 0px);
+	--safe-bottom: env(safe-area-inset-bottom, 0px);
+	--safe-left: env(safe-area-inset-left, 0px);
+	--safe-right: env(safe-area-inset-right, 0px);
 }
 
 /* ==========================================================
@@ -1197,6 +1203,264 @@ body.scene--warm .sky {
 		width: 55px;
 		height: 55px;
 		top: 26%;
+	}
+}
+
+/* ==========================================================
+   17. MOBILE RESPONSIVE ENHANCEMENTS (ADDITIVE ONLY)
+   Everything in this section is scoped inside max-width /
+   orientation media queries, so it never touches desktop
+   (>1024px) rendering. It layers on top of section 11 above
+   rather than replacing it: fills gaps (safe-area insets,
+   tablet range, landscape, foldables, dvh viewport units,
+   comfortable touch targets) without altering any existing
+   desktop rule, color, timing, class name or id.
+========================================================== */
+
+/* --- Tablet / small-laptop range (769px–1024px), previously
+   uncovered by any breakpoint. Keeps the same desktop feel,
+   just gives the heart field and moon a little more room to
+   breathe on iPads / Android tablets in portrait. --- */
+@media (max-width: 1024px) {
+	.heart-field {
+		min-height: 52vh;
+		min-height: 52dvh;
+	}
+	.love-meter__glass {
+		width: min(92vw, 420px);
+	}
+}
+
+/* --- Base mobile layer (<=768px): dynamic viewport units,
+   safe-area padding, and touch-target floors. Uses dvh with a
+   vh fallback so iOS/Android browser chrome never clips
+   content; desktop is completely unaffected since this block
+   only applies under 768px. --- */
+@media (max-width: 768px) {
+	body {
+		min-height: 100vh;
+		min-height: 100dvh;
+	}
+
+	.main {
+		padding-top: calc(var(--space-xl) + var(--safe-top));
+		padding-left: calc(var(--space-sm) + var(--safe-left));
+		padding-right: calc(var(--space-sm) + var(--safe-right));
+	}
+
+	.heart-field {
+		min-height: 50vh;
+		min-height: 50dvh;
+	}
+
+	/* Comfortable minimum touch target for every heart, on top
+	   of whatever --heart-size the JS assigned inline (24–46px).
+	   min-width/min-height act as a floor alongside width/height,
+	   so the visual size and float animation stay identical. */
+	.heart {
+		min-width: 34px;
+		min-height: 34px;
+	}
+
+	.music-toggle {
+		bottom: calc(var(--space-md) + var(--safe-bottom));
+		right: calc(var(--space-md) + var(--safe-right));
+	}
+
+	.continue-section {
+		padding-bottom: calc(var(--space-2xl) + var(--safe-bottom));
+		padding-left: calc(var(--space-md) + var(--safe-left));
+		padding-right: calc(var(--space-md) + var(--safe-right));
+	}
+
+	.popup {
+		padding: calc(var(--space-md) + var(--safe-top)) calc(var(--space-md) + var(--safe-right)) calc(var(--space-md) + var(--safe-bottom)) calc(var(--space-md) + var(--safe-left));
+	}
+
+	.cinematic-overlay__text {
+		top: 60%;
+	}
+}
+
+@media (max-width: 600px) {
+	.heart-field {
+		min-height: 46vh;
+		min-height: 46dvh;
+	}
+	.heart {
+		min-width: 32px;
+		min-height: 32px;
+	}
+}
+
+@media (max-width: 480px) {
+	.heart-field {
+		min-height: 42vh;
+		min-height: 42dvh;
+	}
+	.love-meter__glass {
+		width: min(94vw, 420px);
+	}
+	.music-toggle {
+		bottom: calc(var(--space-sm) + var(--safe-bottom));
+		right: calc(var(--space-sm) + var(--safe-right));
+	}
+}
+
+/* --- Very narrow phones (SE / Mini / foldable cover screens)
+   and the shared 375–320 cluster: a touch more breathing room
+   so nothing feels cramped, matching the spirit of the existing
+   375/360/320 rule above without redefining it. --- */
+@media (max-width: 375px) {
+	.heart-field {
+		min-height: 40vh;
+		min-height: 40dvh;
+	}
+	.heart {
+		min-width: 30px;
+		min-height: 30px;
+	}
+	.main {
+		gap: var(--space-md);
+	}
+}
+
+@media (max-width: 320px) {
+	.heart-field {
+		min-height: 38vh;
+		min-height: 38dvh;
+	}
+	.hero__title {
+		font-size: clamp(1.7rem, 9vw, 2.3rem);
+	}
+	.hero__subtitle {
+		max-width: 26ch;
+	}
+}
+
+/* --- Ultra-narrow / foldable cover displays (<=280px). Keeps
+   the luxury layout intact by shrinking only spacing/typography
+   scale, never structure. --- */
+@media (max-width: 280px) {
+	.love-meter__glass {
+		padding: var(--space-xs) var(--space-sm);
+	}
+	.hero__title {
+		font-size: 1.6rem;
+	}
+	.hero__subtitle {
+		font-size: 0.9rem;
+		max-width: 22ch;
+	}
+	.popup__glass {
+		padding: var(--space-md) var(--space-sm);
+	}
+}
+
+/* --- Landscape phones: the hero + love meter + heart field
+   stack tends to run out of vertical room when height is short.
+   Tighten vertical rhythm and shrink the moon/cinematic stage
+   so nothing overlaps or gets clipped, while keeping every
+   element and its relative order identical to desktop. --- */
+@media (max-width: 1024px) and (orientation: landscape) and (max-height: 600px) {
+	.main {
+		padding-top: calc(var(--space-md) + var(--safe-top));
+		padding-bottom: var(--space-md);
+		gap: var(--space-sm);
+	}
+	.hero {
+		gap: var(--space-2xs);
+	}
+	.hero__title {
+		font-size: clamp(1.6rem, 5vw, 2.4rem);
+	}
+	.hero__subtitle {
+		font-size: clamp(0.85rem, 1.8vw, 1.05rem);
+	}
+	.hero__hint {
+		font-size: 0.6rem;
+	}
+	.moon {
+		top: 4%;
+		width: clamp(70px, 9vw, 120px);
+		height: clamp(70px, 9vw, 120px);
+	}
+	.moon-glow {
+		top: 2%;
+		width: min(40vw, 420px);
+		height: min(40vw, 420px);
+	}
+	.heart-field {
+		min-height: 34vh;
+		min-height: 34dvh;
+	}
+	.love-meter__glass {
+		padding: var(--space-xs) var(--space-md);
+	}
+	.cinematic-moon-glow {
+		width: 160px;
+		height: 160px;
+		top: 8%;
+	}
+	.cinematic-moon {
+		width: 80px;
+		height: 80px;
+		top: 10%;
+	}
+	.cinematic-overlay__text {
+		top: 58%;
+		font-size: clamp(0.85rem, 2vw, 1.1rem);
+	}
+	.popup__glass {
+		padding: var(--space-md) var(--space-lg);
+		max-height: 92vh;
+		max-height: 92dvh;
+		overflow-y: auto;
+	}
+	.music-toggle {
+		bottom: calc(var(--space-sm) + var(--safe-bottom));
+		width: 42px;
+		height: 42px;
+	}
+	.continue-section {
+		padding-bottom: calc(var(--space-md) + var(--safe-bottom));
+	}
+}
+
+/* --- Foldable / very short landscape (cover screens, small
+   foldables opened flat). Extra compression, same structure. --- */
+@media (max-width: 1024px) and (orientation: landscape) and (max-height: 400px) {
+	.heart-field {
+		min-height: 28vh;
+		min-height: 28dvh;
+	}
+	.moon {
+		width: clamp(55px, 7vw, 90px);
+		height: clamp(55px, 7vw, 90px);
+	}
+	.hero__title {
+		font-size: clamp(1.3rem, 4.5vw, 1.9rem);
+	}
+	.cinematic-moon {
+		width: 60px;
+		height: 60px;
+	}
+	.cinematic-moon-glow {
+		width: 120px;
+		height: 120px;
+	}
+}
+
+/* --- Foldables & large-format phones opened flat (e.g. ~600–
+   717px inner-display widths) sit between the 600px and 768px
+   rules; this keeps the heart field from feeling sparse. --- */
+@media (min-width: 601px) and (max-width: 720px) {
+	.heart-field {
+		min-height: 48vh;
+		min-height: 48dvh;
+	}
+	.love-meter__glass {
+		width: min(70vw, 420px);
 	}
 }
 
