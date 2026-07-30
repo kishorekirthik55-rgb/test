@@ -26,8 +26,39 @@
 		TRAIL_INTERVAL_MS: 90,
 		METER_PULSE_MS: 900,
 		FINALE_DARKEN_MS: 1400,
-		HAPTIC_PULSE_MS: 25
+		HAPTIC_PULSE_MS: 25,
+
+		/* music icon morph tuning */
+		MUSIC_ICON_MORPH_MS: 380
 	};
+
+	/* ==================================================
+	   MUSIC ICON MORPH GEOMETRY
+	   A single SVG <path> (see #musicIconPath) is tweened
+	   between two point sets that share the exact same command
+	   structure (two 4-point subpaths: M L L L Z, M L L L Z),
+	   so the pause bars and the play triangle are really the
+	   same path animating — never a swapped/hidden icon.
+	   PAUSE_POINTS: two vertical bars.
+	   PLAY_POINTS: the same two shapes collapsed/rotated into
+	   the top and bottom halves of a play triangle.
+	================================================== */
+	const MUSIC_ICON_PAUSE_POINTS = [
+		[6, 5], [10, 5], [10, 19], [6, 19],
+		[14, 5], [18, 5], [18, 19], [14, 19]
+	];
+	const MUSIC_ICON_PLAY_POINTS = [
+		[8, 5], [18, 12], [18, 12], [8, 12],
+		[8, 12], [18, 12], [18, 12], [8, 19]
+	];
+
+	function buildMusicIconPath(points) {
+		const p = points;
+		return (
+			`M${p[0][0]},${p[0][1]} L${p[1][0]},${p[1][1]} L${p[2][0]},${p[2][1]} L${p[3][0]},${p[3][1]} Z ` +
+			`M${p[4][0]},${p[4][1]} L${p[5][0]},${p[5][1]} L${p[6][0]},${p[6][1]} L${p[7][0]},${p[7][1]} Z`
+		);
+	}
 
 	/* ==================================================
 	   CINEMATIC HEARTBEAT + MEMORY SEQUENCE TUNING
@@ -53,7 +84,7 @@
 		BEAT_PAUSE_MS: 900,        // stillness between one beat ending and the next starting
 		// one full beat (rise + fall + pause) lands ~960ms apart, matching "800-900ms" thump spacing plus a settle
 
-		POST_BEATS_SILENCE_MS: 1000, // held silence after the 6th heartbeat, before anything else
+		POST_BEATS_SILENCE_MS: 1000, // held silence after the 6th heartbeat, before anything else happens
 
 		/* how visible the moon / stars / fog / fireflies get at the peak of each breath.
 		   Kept low on purpose — "slightly visible", not fully revealed. */
@@ -147,6 +178,12 @@
 		lastFocusedElement: null
 	};
 
+	/* Current interpolation position of the music icon morph:
+	   0 = pause shape, 1 = play shape. Lives outside `state` since
+	   it's purely a rendering concern for the icon path, tweened
+	   independently of app state. */
+	const musicIconMorph = { t: 1 };
+
 	const setState = (patch) => Object.assign(state, patch);
 
 	/* ==================================================
@@ -181,8 +218,9 @@
 		dom.chapterSixLink = document.getElementById('chapterSixLink');
 
 		dom.musicToggle = document.getElementById('musicToggle');
-		dom.musicPlayIcon = dom.musicToggle ? dom.musicToggle.querySelector('.music-toggle__icon--play') : null;
-		dom.musicPauseIcon = dom.musicToggle ? dom.musicToggle.querySelector('.music-toggle__icon--pause') : null;
+		/* Single morphing icon: one <path>, tweened between play and
+		   pause shapes. No separate play/pause SVGs to cache anymore. */
+		dom.musicIconPath = document.getElementById('musicIconPath');
 
 		dom.loadingOverlay = document.getElementById('loadingOverlay');
 		dom.flashOverlay = document.getElementById('flashOverlay');
@@ -1337,9 +1375,50 @@
 		].forEach(unlockAudioElement);
 	}
 
+	/* --- Music icon morph: tweens the single <path> 'd' attribute
+	   between the pause-bars shape and the play-triangle shape. Both
+	   shapes share identical M/L/L/L/Z structure, so this is a true
+	   shape morph — never an icon swap, never an opacity crossfade. --- */
+	function setMusicIconShape(t) {
+		if (!dom.musicIconPath) return;
+		const points = MUSIC_ICON_PAUSE_POINTS.map((pausePoint, i) => {
+			const playPoint = MUSIC_ICON_PLAY_POINTS[i];
+			return [
+				lerp(pausePoint[0], playPoint[0], t),
+				lerp(pausePoint[1], playPoint[1], t)
+			];
+		});
+		dom.musicIconPath.setAttribute('d', buildMusicIconPath(points));
+	}
+
+	function morphMusicIcon(playing) {
+		if (!dom.musicIconPath) return;
+		/* playing -> show the pause shape (t = 0); paused -> show the
+		   play triangle (t = 1), so the icon always depicts the action
+		   a tap will perform next. */
+		const targetT = playing ? 0 : 1;
+
+		if (state.reducedMotion || !hasGSAP()) {
+			musicIconMorph.t = targetT;
+			setMusicIconShape(targetT);
+			return;
+		}
+
+		window.gsap.to(musicIconMorph, {
+			t: targetT,
+			duration: CONFIG.MUSIC_ICON_MORPH_MS / 1000,
+			ease: 'power2.inOut',
+			onUpdate: () => setMusicIconShape(musicIconMorph.t)
+		});
+	}
+
 	function initMusic() {
 		if (!dom.ambientMusic) return;
 		dom.ambientMusic.volume = 0;
+
+		/* Render the initial "play" triangle immediately, before any
+		   interaction — the page always loads paused. */
+		setMusicIconShape(musicIconMorph.t);
 
 		const startMusic = () => {
 			if (state.musicPlaying) return;
@@ -1369,6 +1448,8 @@
 	function toggleMusic() {
 		if (!dom.ambientMusic) return;
 		if (state.musicPlaying) {
+			/* Pause only — currentTime is left untouched so the next
+			   play() resumes from the exact same position. */
 			fadeAudio(dom.ambientMusic, 0, CONFIG.MUSIC_FADE).then(() => dom.ambientMusic.pause());
 			setState({ musicPlaying: false });
 		} else {
@@ -1384,8 +1465,7 @@
 		if (!dom.musicToggle) return;
 		dom.musicToggle.setAttribute('aria-pressed', String(state.musicPlaying));
 		dom.musicToggle.setAttribute('aria-label', state.musicPlaying ? 'Pause ambient music' : 'Play ambient music');
-		if (dom.musicPlayIcon) dom.musicPlayIcon.hidden = state.musicPlaying;
-		if (dom.musicPauseIcon) dom.musicPauseIcon.hidden = !state.musicPlaying;
+		morphMusicIcon(state.musicPlaying);
 	}
 
 	/* ==================================================
