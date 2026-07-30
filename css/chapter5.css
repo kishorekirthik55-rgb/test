@@ -1,1705 +1,1511 @@
-'use strict';
-
-(() => {
-	/* ==================================================
-	   1. CONFIGURATION
-	================================================== */
-	const CONFIG = {
-		TOTAL_HEARTS: 20,
-		STAR_COUNT: 90,
-		PARTICLE_COUNT: 26,
-		FIREFLY_COUNT: 14,
-		BURST_PARTICLES_MIN: 8,
-		BURST_PARTICLES_MAX: 16,
-		FLIGHT_DURATION_MIN: 0.9,
-		FLIGHT_DURATION_MAX: 1.3,
-		FLASH_DURATION: 1000,
-		MUSIC_FADE: 800,
-		FINAL_PAUSE_MIN: 800,
-		FINAL_PAUSE_MAX: 1200,
-		HEART_EDGE_PADDING: 40,
-		NEXT_CHAPTER_URL: 'chapter6.html',
-
-		/* typewriter / trail tuning */
-		TYPEWRITER_MS_MIN: 25,
-		TYPEWRITER_MS_MAX: 40,
-		TRAIL_INTERVAL_MS: 90,
-		METER_PULSE_MS: 900,
-		FINALE_DARKEN_MS: 1400,
-		HAPTIC_PULSE_MS: 25
-	};
-
-	/* ==================================================
-	   CINEMATIC HEARTBEAT + MEMORY SEQUENCE TUNING
-	   A real emotional build: freeze the whole world ->
-	   slow fade to near-black -> six slow heartbeats, each
-	   one a full breathing cycle where the entire scene
-	   (overlay, moon, stars, fog, fireflies) rises toward
-	   light together with the heart and settles back into
-	   darkness -> a held silence -> golden dust drifts in
-	   -> typewriter memory -> a calm reading pause ->
-	   dissolve -> fly to meter -> the whole world slowly
-	   wakes back up. Nothing here blinks or flashes —
-	   every stage is a tween, never a hard cut.
-	================================================== */
-	const CINEMATIC = {
-		DARKEN_MS: 1100,           // 0% -> near-black, slow fade (not a flash)
-		STAGE_OPACITY: 0.97,       // near-black baseline, never fully flat black
-
-		BEAT_COUNT: 4,             // six slow heartbeats
-		BEAT_PEAK_VISIBILITY: 0.72,// how much of the world becomes visible at the top of each beat
-		BEAT_RISE_MS: 1000,         // dark -> peak (passes through ~35% / ~55% / ~70%)
-		BEAT_FALL_MS: 1000,         // peak -> dark again
-		BEAT_PAUSE_MS: 900,        // stillness between one beat ending and the next starting
-		// one full beat (rise + fall + pause) lands ~960ms apart, matching "800-900ms" thump spacing plus a settle
-
-		POST_BEATS_SILENCE_MS: 1000, // held silence after the 6th heartbeat, before anything else
-
-		/* how visible the moon / stars / fog / fireflies get at the peak of each breath.
-		   Kept low on purpose — "slightly visible", not fully revealed. */
-		WORLD_DARK_OPACITY: 0.05,
-		WORLD_PEAK_OPACITY: 0.4,
-		MOON_DARK_OPACITY: 0.25,
-		MOON_PEAK_OPACITY: 1.00,
-
-		/* the heart's own breathing: 100% -> 108% -> 104% -> 100%, soft and slow, no elastic snap */
-		HEART_PEAK_SCALE: 1.08,
-		HEART_SETTLE_SCALE: 1.04,
-
-		DUST_MIN: 5,
-		DUST_MAX: 9,
-		DUST_SETTLE_MS: 1300,
-
-		PRE_TEXT_PAUSE_MS: 400,
-		TEXT_HOLD_MIN_MS: 4800,
-		TEXT_HOLD_MAX_MS: 5400,
-		TEXT_FADE_MS: 700,
-
-		DISSOLVE_MS: 1000,
-		STAGE_CLEAR_MS: 1300        // world slowly brightens back, matched to the darken speed
-	};
-
-	/* ==================================================
-	   1b. THE 20 MEMORIES (shown as floating text, no popup)
-	   Heart 20's message lives in the existing #messageCard
-	   popup, so only hearts 0–18 (Heart 1–19) get an entry here.
-	================================================== */
-	const MEMORIES_EN = [
-		'Every laugh with you became a memory I will always cherish.',
-		'The most beautiful adventures always seemed to begin with you.',
-		'Some people slowly become an irreplaceable part of our lives.',
-		'Every inside joke reminded me how fortunate I was to know you.',
-		'You turned ordinary moments into unforgettable memories.',
-		'Some people enter your life... you made it brighter just by staying.',
-		'Every smile we shared made the world feel a little warmer.',
-		'The happiest moments somehow always happened when you were around.',
-		'No matter where life takes us, these memories will always remain.',
-		'Every chapter of my journey became brighter because you were in it.',
-		'Thank you for standing beside me through every high and low.',
-		'Some bonds are simply meant to last a lifetime.',
-		'The smallest moments with you became my favourite stories.',
-		'Every journey felt more meaningful because you were there.',
-		'You became one of the most beautiful reasons behind so many memories.',
-		'Life gave me countless moments... knowing you became one of the best.',
-		'Even the simplest days became special because you were part of them.',
-		'Some memories never fade because they were created with someone truly special.',
-		'Every heartbeat of this journey carries a beautiful piece of you.',
-		"You're getting closer to discovering why this entire journey was created just for you."
-	];
-
-	const MEMORIES_TA = [
-		'உன் வருகைக்குப் பிறகு... என் நினைவுகளுக்கே ஒரு புதிய அழகு கிடைத்தது.',
-		'சில மனிதர்கள் மட்டும் போதும்... வாழ்க்கையே மாறிப்போக.',
-		'உன்னுடன் கழிந்த ஒவ்வொரு நொடியும்... இன்னும் என் மனதில் புன்னகைக்கிறது.',
-		'சில சந்திப்புகள் காரணமின்றி நடக்கும்... ஆனால் அவை வாழ்நாள் முழுவதும் நினைவாக நிற்கும்.',
-		'நாம் பகிர்ந்த சிறு தருணங்களே... இன்று பெரிய பொக்கிஷங்களாகிவிட்டன.',
-		'நேரம் பலவற்றை மாற்றிவிடும்... ஆனால் சில நினைவுகளை ஒருபோதும் மாற்ற முடியாது.',
-		'உன் புன்னகை இருந்த இடங்களில்... இன்னும் என் நினைவுகள் சுற்றித் திரிகின்றன.',
-		'சாதாரணமான நாட்களுக்குக் கூட... நீ வந்ததால் ஒரு சிறப்பு கிடைத்தது.',
-		'சில தருணங்கள் முடிந்துவிடும்... ஆனால் அவை விட்டுச் செல்லும் நினைவுகள் என்றும் முடிவதில்லை.',
-		'என் வாழ்க்கையின் பல அழகான கதைகளில்... நீயும் ஒரு அழகான அத்தியாயம்.',
-		'எந்த சூழலிலும் அருகில் இருந்ததற்கு... என் மனமார்ந்த நன்றி.',
-		'சில பந்தங்கள்... வார்த்தைகளால் விளக்க முடியாத அளவிற்கு அழகானவை.',
-		'ஒன்றாக நடந்த சிறிய பயணங்களே... இன்று பெரிய நினைவுகளாக வாழ்கின்றன.',
-		'சிரித்துக் கொண்டே கழிந்த அந்த நாட்கள்... காலம் கடந்தாலும் மனதில் பசுமையாகவே இருக்கின்றன.',
-		'வாழ்க்கை பலரை அறிமுகப்படுத்தியது... ஆனால் சிலரை மட்டும் மறக்க முடியவில்லை.',
-		'ஒவ்வொரு நினைவையும் திரும்பிப் பார்க்கும் போது... தானாகவே ஒரு புன்னகை மலர்கிறது.',
-		'சாதாரணமான தருணங்களையே... மறக்க முடியாத அனுபவங்களாக மாற்றியவள் நீ.',
-		'காலம் நகர்ந்தாலும்... சில நினைவுகள் மட்டும் அதே இடத்தில் காத்திருக்கின்றன.',
-		'இந்த பயணத்தின் ஒவ்வொரு அடியிலும்... உன் இருப்பின் அழகான தடம் பதிந்திருக்கிறது.',
-		'இன்னும் சில நொடிகளில்... இந்தப் பயணம் ஏன் உனக்காக உருவானது என்பதை நீ உணர்வாய்.'
-	];
-
-	/* ==================================================
-	   2. STATE
-	================================================== */
-	const state = {
-		heartsCollected: 0,
-		totalHearts: CONFIG.TOTAL_HEARTS,
-		musicPlaying: false,
-		sceneBrightness: 0,
-		popupOpen: false,
-		interactionLocked: true,
-		continueEnabled: false,
-		animationRunning: false,
-		reducedMotion: false,
-		hearts: [],
-		lastFocusedElement: null
-	};
-
-	const setState = (patch) => Object.assign(state, patch);
-
-	/* ==================================================
-	   3. DOM CACHE
-	================================================== */
-	const dom = {};
-
-	function cacheDom() {
-		dom.body = document.body;
-		dom.main = document.getElementById('main');
-		dom.hero = document.getElementById('hero');
-		dom.heroLabel = document.getElementById('heroLabel');
-		dom.heroTitle = document.getElementById('heroTitle');
-		dom.heroSubtitle = document.getElementById('heroSubtitle');
-		dom.heroHint = document.getElementById('heroHint');
-
-		dom.loveMeter = document.getElementById('loveMeter');
-		dom.loveMeterGlass = dom.loveMeter ? dom.loveMeter.querySelector('.love-meter__glass') : null;
-		dom.progressFill = document.getElementById('progressFill');
-		dom.progressText = document.getElementById('progressText');
-		dom.loveMeterTrack = document.getElementById('loveMeterTrack');
-
-		dom.heartField = document.getElementById('heartField');
-		dom.heartContainer = document.getElementById('heartContainer');
-
-		dom.popup = document.getElementById('messageCard');
-		dom.popupGlass = dom.popup ? dom.popup.querySelector('.popup__glass') : null;
-		dom.popupContinueButton = document.getElementById('popupContinueButton');
-
-		dom.continueSection = document.getElementById('continueSection');
-		dom.continueButton = document.getElementById('continueButton');
-		dom.chapterSixLink = document.getElementById('chapterSixLink');
-
-		dom.musicToggle = document.getElementById('musicToggle');
-		dom.musicPlayIcon = dom.musicToggle ? dom.musicToggle.querySelector('.music-toggle__icon--play') : null;
-		dom.musicPauseIcon = dom.musicToggle ? dom.musicToggle.querySelector('.music-toggle__icon--pause') : null;
-
-		dom.loadingOverlay = document.getElementById('loadingOverlay');
-		dom.flashOverlay = document.getElementById('flashOverlay');
-
-		dom.moon = document.getElementById('moon');
-		dom.moonGlow = document.getElementById('moonGlow');
-		dom.stars = document.getElementById('stars');
-		dom.particles = document.getElementById('particles');
-		dom.fireflies = document.getElementById('fireflies');
-		dom.fogBack = document.getElementById('fogBack');
-		dom.fogMiddle = document.getElementById('fogMiddle');
-		dom.fogFront = document.getElementById('fogFront');
-
-		dom.ambientMusic = document.getElementById('ambientMusic');
-		dom.heartCollectSound = document.getElementById('heartCollectSound');
-		dom.magicSparkleSound = document.getElementById('magicSparkleSound');
-		dom.finalMagicSound = document.getElementById('finalMagicSound');
-		/* Cinematic collection-sequence audio layers */
-		dom.heartbeatSound = document.getElementById('heartbeatSound');
-		dom.pianoNoteSound = document.getElementById('pianoNoteSound');
-
-		/* Cinematic heartbeat + memory stage */
-		dom.cinematicOverlay = document.getElementById('cinematicOverlay');
-		dom.cinematicDust = document.getElementById('cinematicDust');
-		dom.cinematicOverlayText = document.getElementById('cinematicOverlayText');
-		dom.cinematicMoon = dom.cinematicOverlay ? dom.cinematicOverlay.querySelector('.cinematic-moon') : null;
-		dom.cinematicMoonGlow = dom.cinematicOverlay ? dom.cinematicOverlay.querySelector('.cinematic-moon-glow') : null;
-
-		/* Step 1: Add moon references */
-		dom.cinematicMoonWhite = document.querySelector(".cinematic-moon-white");
-		dom.cinematicMoonPink = document.querySelector(".cinematic-moon-pink");
-
-		/* World-breathing targets used during the heartbeat sequence */
-		dom.worldBreathTargets = [dom.stars, dom.fireflies, dom.fogBack, dom.fogMiddle, dom.fogFront].filter(Boolean);
-
-		dom.liveRegion = createLiveRegion();
-	}
-
-	function createLiveRegion() {
-		const region = document.createElement('div');
-		region.setAttribute('role', 'status');
-		region.setAttribute('aria-live', 'polite');
-		region.className = 'visually-hidden';
-		document.body.appendChild(region);
-		return region;
-	}
-
-	/* ==================================================
-	   16. UTILITIES
-	================================================== */
-	const random = (min, max) => Math.random() * (max - min) + min;
-	const randomInt = (min, max) => Math.floor(random(min, max + 1));
-	const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
-	const lerp = (start, end, t) => start + (end - start) * t;
-	const mapRange = (value, inMin, inMax, outMin, outMax) =>
-		outMin + ((value - inMin) * (outMax - outMin)) / (inMax - inMin);
-
-	function debounce(fn, delay) {
-		let timer = null;
-		return (...args) => {
-			clearTimeout(timer);
-			timer = setTimeout(() => fn(...args), delay);
-		};
-	}
-
-	function wait(ms) {
-		return new Promise((resolve) => setTimeout(resolve, ms));
-	}
-
-	function announce(message) {
-		if (!dom.liveRegion) return;
-		dom.liveRegion.textContent = '';
-		requestAnimationFrame(() => {
-			dom.liveRegion.textContent = message;
-		});
-	}
-
-	function hasGSAP() {
-		return typeof window.gsap !== 'undefined';
-	}
-
-	/* ==================================================
-	   ACCESSIBILITY SETUP
-	================================================== */
-	function setupAccessibility() {
-		state.reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-	}
-
-	/* ==================================================
-	   BACKGROUND GENERATION — STARS
-	================================================== */
-	function generateStars() {
-		if (!dom.stars) return;
-		const fragment = document.createDocumentFragment();
-
-		for (let i = 0; i < CONFIG.STAR_COUNT; i++) {
-			const star = document.createElement('span');
-			star.className = 'star';
-			const size = random(1, 2.6);
-			star.style.width = `${size}px`;
-			star.style.height = `${size}px`;
-			star.style.top = `${random(0, 70)}%`;
-			star.style.left = `${random(0, 100)}%`;
-			star.style.setProperty('--twinkle-duration', `${random(2.5, 6)}s`);
-			star.style.setProperty('--twinkle-delay', `${random(0, 5)}s`);
-			star.style.setProperty('--star-min-opacity', random(0.1, 0.3));
-			star.style.setProperty('--star-max-opacity', random(0.6, 1));
-			fragment.appendChild(star);
-		}
-
-		dom.stars.appendChild(fragment);
-	}
-
-	/* ==================================================
-	   BACKGROUND GENERATION — PARTICLES
-	================================================== */
-	function generateParticles(count = CONFIG.PARTICLE_COUNT) {
-		if (!dom.particles) return;
-		const fragment = document.createDocumentFragment();
-
-		for (let i = 0; i < count; i++) {
-			const particle = document.createElement('span');
-			particle.className = 'particle';
-			const size = random(2, 6);
-			particle.style.width = `${size}px`;
-			particle.style.height = `${size}px`;
-			particle.style.left = `${random(0, 100)}%`;
-			particle.style.top = `${random(40, 100)}%`;
-			particle.style.setProperty('--particle-duration', `${random(7, 14)}s`);
-			particle.style.setProperty('--particle-delay', `${random(0, 10)}s`);
-			particle.style.setProperty('--particle-drift', `${random(-40, 40)}px`);
-			fragment.appendChild(particle);
-		}
-
-		dom.particles.appendChild(fragment);
-	}
-
-	/* ==================================================
-	   BACKGROUND GENERATION — FIREFLIES
-	================================================== */
-	function generateFireflies() {
-		if (!dom.fireflies) return;
-		const fragment = document.createDocumentFragment();
-
-		for (let i = 0; i < CONFIG.FIREFLY_COUNT; i++) {
-			const firefly = document.createElement('span');
-			firefly.className = 'firefly';
-			firefly.style.top = `${random(5, 90)}%`;
-			firefly.style.left = `${random(0, 100)}%`;
-			firefly.style.setProperty('--firefly-size', `${random(3, 7)}px`);
-			firefly.style.setProperty('--firefly-duration', `${random(9, 16)}s`);
-			firefly.style.setProperty('--firefly-breathe', `${random(2.5, 5)}s`);
-			firefly.style.setProperty('--firefly-delay', `${random(0, 6)}s`);
-			firefly.style.setProperty('--fx1', `${random(-40, 40)}px`);
-			firefly.style.setProperty('--fy1', `${random(-50, 10)}px`);
-			firefly.style.setProperty('--fx2', `${random(-40, 40)}px`);
-			firefly.style.setProperty('--fy2', `${random(-20, 30)}px`);
-			firefly.style.setProperty('--fx3', `${random(-40, 40)}px`);
-			firefly.style.setProperty('--fy3', `${random(-10, 40)}px`);
-			fragment.appendChild(firefly);
-		}
-
-		dom.fireflies.appendChild(fragment);
-	}
-
-	/* ==================================================
-	   5. HEART GENERATION
-	================================================== */
-	const HEART_SVG_PATH = 'M16 28.5C16 28.5 3 20.7 3 11.6C3 6.9 6.7 3.5 11 3.5C13.3 3.5 15 4.6 16 6.2C17 4.6 18.7 3.5 21 3.5C25.3 3.5 29 6.9 29 11.6C29 20.7 16 28.5 16 28.5Z';
-
-	function ensureHeartGradientDefs() {
-		if (document.getElementById('heartGradientDefs')) return;
-		const svgNS = 'http://www.w3.org/2000/svg';
-		const svg = document.createElementNS(svgNS, 'svg');
-		svg.setAttribute('id', 'heartGradientDefs');
-		svg.setAttribute('width', '0');
-		svg.setAttribute('height', '0');
-		svg.style.position = 'absolute';
-		svg.innerHTML = `
-			<defs>
-				<linearGradient id="heartGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-					<stop offset="0%" stop-color="#f2c9d6" stop-opacity="0.95"></stop>
-					<stop offset="55%" stop-color="#e8a9c0" stop-opacity="0.9"></stop>
-					<stop offset="100%" stop-color="#e9d3a3" stop-opacity="0.85"></stop>
-				</linearGradient>
-			</defs>
-		`;
-		document.body.appendChild(svg);
-	}
-
-	function createHeartElement(id) {
-		const svgNS = 'http://www.w3.org/2000/svg';
-		const wrapper = document.createElement('div');
-		wrapper.className = 'heart';
-		wrapper.dataset.heartId = String(id);
-		wrapper.setAttribute('role', 'button');
-		wrapper.setAttribute('tabindex', '0');
-		wrapper.setAttribute('aria-label', 'Collect heart');
-
-		const svg = document.createElementNS(svgNS, 'svg');
-		svg.setAttribute('viewBox', '0 0 32 29');
-
-		const path = document.createElementNS(svgNS, 'path');
-		path.setAttribute('d', HEART_SVG_PATH);
-		path.setAttribute('class', 'heart__glass');
-
-		svg.appendChild(path);
-		wrapper.appendChild(svg);
-
-		return wrapper;
-	}
-
-	function generateHearts() {
-		if (!dom.heartContainer) return;
-		ensureHeartGradientDefs();
-
-		const fragment = document.createDocumentFragment();
-		const bounds = getFieldBounds();
-
-		for (let i = 0; i < CONFIG.TOTAL_HEARTS; i++) {
-			const element = createHeartElement(i);
-			const size = random(24, 46);
-			const x = random(bounds.padding, bounds.width - bounds.padding);
-			const y = random(bounds.padding, bounds.height - bounds.padding);
-
-			const heart = {
-				id: i,
-				element,
-				x,
-				y,
-				baseX: x,
-				baseY: y,
-				scale: 1,
-				rotation: random(-8, 8),
-				speed: random(0.15, 0.4),
-				amplitude: random(10, 26),
-				phase: random(0, Math.PI * 2),
-				delay: random(0, 4),
-				collected: false,
-				glow: random(0.6, 1),
-				pulseSpeed: random(2.4, 4.2)
-			};
-
-			element.style.setProperty('--heart-size', `${size}px`);
-			element.style.setProperty('--heart-pulse', `${heart.pulseSpeed}s`);
-			element.style.left = `${x}px`;
-			element.style.top = `${y}px`;
-			element.style.animationDelay = `${heart.delay}s`;
-
-			state.hearts.push(heart);
-			fragment.appendChild(element);
-		}
-
-		dom.heartContainer.appendChild(fragment);
-	}
-
-	function getFieldBounds() {
-		const rect = dom.heartField
-			? dom.heartField.getBoundingClientRect()
-			: { width: window.innerWidth, height: window.innerHeight * 0.6 };
-		return {
-			width: rect.width || window.innerWidth,
-			height: rect.height || window.innerHeight * 0.6,
-			padding: CONFIG.HEART_EDGE_PADDING
-		};
-	}
-
-	/* ==================================================
-	   6. ANIMATION LOOP
-	================================================== */
-	let rafId = null;
-	let lastTimestamp = 0;
-
-	function startAnimationLoop() {
-		if (state.reducedMotion) return;
-		setState({ animationRunning: true });
-		lastTimestamp = performance.now();
-		rafId = requestAnimationFrame(animationTick);
-	}
-
-	function stopAnimationLoop() {
-		if (rafId) cancelAnimationFrame(rafId);
-		rafId = null;
-		setState({ animationRunning: false });
-	}
-
-	function animationTick(timestamp) {
-		const elapsed = (timestamp - lastTimestamp) / 1000;
-		lastTimestamp = timestamp;
-
-		for (const heart of state.hearts) {
-			if (heart.collected) continue;
-
-			heart.phase += elapsed * heart.speed;
-			const floatX = Math.sin(heart.phase) * heart.amplitude;
-			const floatY = Math.cos(heart.phase * 0.8) * (heart.amplitude * 0.6);
-			const rotate = Math.sin(heart.phase * 0.5) * heart.rotation;
-
-			heart.element.style.transform = `translate3d(${floatX}px, ${floatY}px, 0) rotate(${rotate}deg)`;
-		}
-
-		rafId = requestAnimationFrame(animationTick);
-	}
-
-	/* ==================================================
-	   7. COLLECTION LOGIC
-	================================================== */
-	function attachHeartListeners() {
-		if (!dom.heartContainer) return;
-
-		dom.heartContainer.addEventListener('click', (event) => {
-			const heartElement = event.target.closest('.heart');
-			if (heartElement) handleHeartActivation(heartElement);
-		});
-
-		dom.heartContainer.addEventListener('keydown', (event) => {
-			if (event.key !== 'Enter' && event.key !== ' ') return;
-			const heartElement = event.target.closest('.heart');
-			if (heartElement) {
-				event.preventDefault();
-				handleHeartActivation(heartElement);
-			}
-		});
-	}
-
-	function handleHeartActivation(heartElement) {
-		if (state.interactionLocked) return;
-		const id = Number(heartElement.dataset.heartId);
-		const heart = state.hearts.find((h) => h.id === id);
-		if (!heart || heart.collected) return;
-		collectHeart(heart);
-	}
-
-	/* Gentle single-pulse haptic feedback */
-	function triggerHaptic() {
-		if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
-			navigator.vibrate(CONFIG.HAPTIC_PULSE_MS);
-		}
-	}
-
-	/* ==================================================
-	   CINEMATIC HEARTBEAT + MEMORY SEQUENCE
-	   Tap -> freeze the whole world -> slow fade to near-
-	   black -> six slow heartbeats where the ENTIRE SCENE
-	   breathes (overlay, moon, stars, fog, fireflies all
-	   rise toward light together with the heart, then settle
-	   back into darkness) -> a held silence -> golden dust
-	   drifts in -> typewriter memory -> a calm reading pause
-	   -> dissolve -> fly to meter -> the world slowly wakes
-	   back up.
-	================================================== */
-	async function collectHeart(heart) {
-		heart.collected = true;
-		heart.element.setAttribute('aria-disabled', 'true');
-		heart.element.tabIndex = -1;
-
-		setState({ interactionLocked: true });
-		stopAnimationLoop();
-		triggerHaptic();
-
-		/* Capture geometry now, before the heart moves/dissolves */
-		const startRect = heart.element.getBoundingClientRect();
-
-		freezeHeartInPlace(heart);
-		freezeWorld();
-		fadeAudio(dom.ambientMusic, 0.04, CINEMATIC.DARKEN_MS);
-
-		await darkenStage();
-		
-		/* Wrap heartbeat in try-catch to prevent errors from breaking the sequence */
-		try {
-			await playHeartbeatBeats(heart);
-		} catch (e) {
-			console.error('Heartbeat playback error:', e);
-		}
-
-		/* Fix 2 — Stop heartbeat immediately after the last beat */
-		if (dom.heartbeatSound) {
-			dom.heartbeatSound.pause();
-			dom.heartbeatSound.currentTime = 0;
-		}
-
-		spawnCinematicDust(startRect);
-
-		await wait(CINEMATIC.PRE_TEXT_PAUSE_MS);
-		await revealCinematicMemory(
-			MEMORIES_EN[heart.id],
-			MEMORIES_TA[heart.id]
-		);
-		await wait(random(CINEMATIC.TEXT_HOLD_MIN_MS, CINEMATIC.TEXT_HOLD_MAX_MS));
-		await wait(3000);
-		
-		/* Wrap transformMoon in try-catch to prevent errors from breaking the sequence */
-		try {
-			await transformMoon();
-		} catch (e) {
-			console.error('Moon transform error:', e);
-		}
-		
-		await hideCinematicMemory();
-
-		await releaseHeart(heart, startRect);
-		await clearStage();
-
-		setState({ heartsCollected: state.heartsCollected + 1 });
-		updateProgress();
-		pulseLoveMeter();
-		brightenWorld();
-		fadeAudio(dom.ambientMusic, 0.35, 900);
-		announce(`${state.heartsCollected} of ${state.totalHearts} hearts collected`);
-
-		if (!state.reducedMotion) startAnimationLoop();
-
-		if (state.heartsCollected >= state.totalHearts) {
-			checkCompletion();
-		} else {
-			setState({ interactionLocked: false });
-		}
-	}
-
-	/* --- Freeze: stop floating, hold heart visible above the stage --- */
-	function freezeHeartInPlace(heart) {
-		heart.element.classList.add('is-focused');
-		heart.element.style.transform = 'translate3d(0, 0, 0)';
-		if (hasGSAP()) {
-			window.gsap.set(heart.element, { scale: 1 });
-		}
-	}
-
-	/* --- World freeze: moon glow, stars, fireflies and fog all hold
-	   still and dim along with the stage, and only resume once the
-	   memory sequence has fully cleared. --- */
-	function freezeWorld() {
-		dom.body.classList.add('scene--frozen');
-	}
-
-	function unfreezeWorld() {
-		dom.body.classList.remove('scene--frozen');
-	}
-
-	/* --- Darken: fade the whole stage to near-black slowly (~1.1s),
-	   never a flash. The moon dims down to almost nothing at the same
-	   time, matched to the same slow curve. --- */
-	function darkenStage() {
-		if (!dom.cinematicOverlay) return Promise.resolve();
-		dom.cinematicOverlay.setAttribute('aria-hidden', 'false');
-
-		/* Step 4: Reset moon to initial state when overlay opens */
-		if (dom.cinematicMoonWhite && dom.cinematicMoonPink) {
-			if (hasGSAP()) {
-				window.gsap.set(dom.cinematicMoonWhite, {
-					opacity: 1
-				});
-				window.gsap.set(dom.cinematicMoonPink, {
-					opacity: 0
-				});
-			} else {
-				dom.cinematicMoonWhite.style.opacity = "1";
-				dom.cinematicMoonPink.style.opacity = "0";
-			}
-		}
-
-		if (hasGSAP() && !state.reducedMotion) {
-			return new Promise((resolve) => {
-				const tl = window.gsap.timeline({ onComplete: resolve });
-				tl.to(dom.cinematicOverlay, {
-					opacity: CINEMATIC.STAGE_OPACITY,
-					duration: CINEMATIC.DARKEN_MS / 1000,
-					ease: 'power2.inOut'
-				}, 0);
-				if (dom.moon) {
-					tl.to(dom.moon, {
-						opacity: CINEMATIC.MOON_DARK_OPACITY,
-						duration: CINEMATIC.DARKEN_MS / 1000,
-						ease: 'power2.inOut'
-					}, 0);
-				}
-			});
-		}
-
-		dom.cinematicOverlay.style.transition = `opacity ${CINEMATIC.DARKEN_MS}ms ease-in-out`;
-		dom.cinematicOverlay.style.opacity = String(CINEMATIC.STAGE_OPACITY);
-		if (dom.moon) {
-			dom.moon.style.transition = `opacity ${CINEMATIC.DARKEN_MS}ms ease-in-out`;
-			dom.moon.style.opacity = String(CINEMATIC.MOON_DARK_OPACITY);
-		}
-		return wait(CINEMATIC.DARKEN_MS);
-	}
-
-	/* --- setWorldVisibility: the heart of the "world breathing" effect.
-	   `visibility` runs 0 (dark) -> 1 (peak of a breath). Tweens the
-	   cinematic overlay, the moon, and the stars/fog/fireflies group
-	   together over `durationMs`, all with the same smooth easing, so
-	   the whole scene rises and falls as a single breath. --- */
-	function setWorldVisibility(visibility, durationMs) {
-		const overlayOpacity = lerp(
-			CINEMATIC.STAGE_OPACITY,
-			CINEMATIC.STAGE_OPACITY * (1 - CINEMATIC.BEAT_PEAK_VISIBILITY),
-			visibility
-		);
-		const worldOpacity = lerp(CINEMATIC.WORLD_DARK_OPACITY, CINEMATIC.WORLD_PEAK_OPACITY, visibility);
-		const moonOpacity = lerp(CINEMATIC.MOON_DARK_OPACITY, CINEMATIC.MOON_PEAK_OPACITY, visibility);
-
-		if (state.reducedMotion || !hasGSAP()) {
-			if (dom.cinematicOverlay) dom.cinematicOverlay.style.opacity = String(overlayOpacity);
-			if (dom.moon) dom.moon.style.opacity = String(moonOpacity);
-			dom.worldBreathTargets.forEach((el) => { el.style.opacity = String(worldOpacity); });
-			return Promise.resolve();
-		}
-
-		return new Promise((resolve) => {
-			const duration = durationMs / 1000;
-			if (dom.cinematicOverlay) {
-				window.gsap.to(dom.cinematicOverlay, { opacity: overlayOpacity, duration, ease: 'sine.inOut' });
-			}
-			if (dom.moon) {
-				window.gsap.to(dom.moon, { opacity: moonOpacity, duration, ease: 'sine.inOut' });
-			}
-			if (dom.worldBreathTargets.length) {
-				window.gsap.to(dom.worldBreathTargets, { opacity: worldOpacity, duration, ease: 'sine.inOut' });
-			}
-			window.gsap.delayedCall(duration, resolve);
-		});
-	}
-
-	/* --- growHeartBeat: the heart's own half of the breath — a soft,
-	   slow scale up and back down (100% -> 108% -> 104% -> 100%),
-	   timed to run alongside the world's rise and fall. No elastic
-	   bounce, no snapping — just a gentle swell. --- */
-	function growHeartBeat(heart, riseMs, fallMs) {
-		if (state.reducedMotion || !hasGSAP()) return;
-		const el = heart.element;
-		const tl = window.gsap.timeline();
-		tl.to(el, {
-			scale: CINEMATIC.HEART_PEAK_SCALE,
-			duration: riseMs / 1000,
-			ease: 'sine.inOut'
-		});
-		tl.to(el, {
-			scale: CINEMATIC.HEART_SETTLE_SCALE,
-			duration: (fallMs * 0.45) / 1000,
-			ease: 'sine.inOut'
-		});
-		tl.to(el, {
-			scale: 1,
-			duration: (fallMs * 0.55) / 1000,
-			ease: 'sine.inOut'
-		});
-	}
-
-	/* --- Six slow heartbeats. Each one: the world rises from dark
-	   toward its peak (through the equivalent of ~35% / ~55% / ~70%
-	   visible), the thump sound plays right at the top of the breath,
-	   then everything settles back into darkness together, followed
-	   by a brief pause before the next beat begins. --- */
-	async function playHeartbeatBeats(heart) {
-		for (let i = 0; i < CINEMATIC.BEAT_COUNT; i += 1) {
-			growHeartBeat(heart, CINEMATIC.BEAT_RISE_MS, CINEMATIC.BEAT_FALL_MS);
-
-			await setWorldVisibility(1, CINEMATIC.BEAT_RISE_MS);
-
-			/* Fix 3 — Use safePlay instead of await, and make sure each beat restarts cleanly */
-			if (dom.heartbeatSound) {
-				dom.heartbeatSound.pause();
-				dom.heartbeatSound.currentTime = 0;
-				dom.heartbeatSound.volume = 1.0;
-				safePlay(dom.heartbeatSound); // Don't await - use safePlay
-			}
-			triggerHaptic();
-
-			await setWorldVisibility(0, CINEMATIC.BEAT_FALL_MS);
-
-			if (i < CINEMATIC.BEAT_COUNT - 1) {
-				await wait(CINEMATIC.BEAT_PAUSE_MS);
-			}
-		}
-
-		/* A held beat of silence and stillness before anything else happens */
-		await wait(CINEMATIC.POST_BEATS_SILENCE_MS);
-	}
-
-	/* --- Dust: a few golden motes drift in around the held heart,
-	   only after the beats and the silence that follows them --- */
-	function spawnCinematicDust(originRect) {
-		if (!dom.cinematicDust || state.reducedMotion) return;
-
-		const count = randomInt(CINEMATIC.DUST_MIN, CINEMATIC.DUST_MAX);
-		const originX = originRect.left + originRect.width / 2;
-		const originY = originRect.top + originRect.height / 2;
-
-		for (let i = 0; i < count; i += 1) {
-			const particle = document.createElement('span');
-			particle.className = 'cinematic-dust-particle';
-			const size = random(2, 5);
-			particle.style.width = `${size}px`;
-			particle.style.height = `${size}px`;
-			particle.style.left = `${originX + random(-70, 70)}px`;
-			particle.style.top = `${originY + random(-70, 70)}px`;
-			dom.cinematicDust.appendChild(particle);
-
-			const drift = random(CINEMATIC.DUST_SETTLE_MS, CINEMATIC.DUST_SETTLE_MS + 500) / 1000;
-
-			if (hasGSAP()) {
-				window.gsap.fromTo(
-					particle,
-					{ opacity: 0, y: random(10, 24) },
-					{
-						opacity: random(0.4, 0.85),
-						y: random(-16, -6),
-						duration: drift,
-						delay: random(0, 0.3),
-						ease: 'power1.out'
-					}
-				);
-			} else {
-				particle.style.transition = `opacity ${drift}s ease-out, transform ${drift}s ease-out`;
-				requestAnimationFrame(() => {
-					particle.style.opacity = String(random(0.4, 0.85));
-					particle.style.transform = `translateY(${random(-16, -6)}px)`;
-				});
-			}
-		}
-	}
-
-	function clearCinematicDust() {
-		if (!dom.cinematicDust) return;
-		dom.cinematicDust.innerHTML = '';
-	}
-
-	/* --- Memory text: typewriter, alone on the dark stage --- */
-	async function revealCinematicMemory(englishText, tamilText) {
-		if (englishText === undefined || tamilText === undefined) return;
-		if (!dom.cinematicOverlayText) return;
-
-		// Moon fades in before the text types
-		if (dom.cinematicMoon && hasGSAP() && !state.reducedMotion) {
-			window.gsap.fromTo(
-				dom.cinematicMoon,
-				{
-					opacity: 0,
-					scale: 0.9
-				},
-				{
-					opacity: 1,
-					scale: 1,
-					duration: 2,
-					ease: "power2.out"
-				}
-			);
-
-			window.gsap.fromTo(
-				dom.cinematicMoonGlow,
-				{
-					opacity: 0
-				},
-				{
-					opacity: 1,
-					duration: 2,
-					ease: "power2.out"
-				}
-			);
-		}
-
-		// --- Show English first ---
-		dom.cinematicOverlayText.classList.remove('tamil-text');
-		dom.cinematicOverlayText.innerHTML = '';
-		dom.cinematicOverlayText.style.opacity = '1';
-		await typeWriter(dom.cinematicOverlayText, englishText);
-
-		// Hold English for 3 seconds
-		await wait(3000);
-
-		// Fade out English
-		if (hasGSAP() && !state.reducedMotion) {
-			await new Promise((resolve) => {
-				window.gsap.to(dom.cinematicOverlayText, {
-					opacity: 0,
-					duration: 0.8,
-					ease: 'power2.inOut',
-					onComplete: resolve
-				});
-			});
-		} else {
-			dom.cinematicOverlayText.style.transition = 'opacity 0.8s ease-in-out';
-			dom.cinematicOverlayText.style.opacity = '0';
-			await wait(800);
-		}
-
-		await wait(300);
-
-		// --- Show Tamil ---
-		dom.cinematicOverlayText.classList.add('tamil-text');
-		dom.cinematicOverlayText.innerHTML = '';
-		
-		if (hasGSAP()) {
-			window.gsap.set(dom.cinematicOverlayText, { opacity: 1 });
-		} else {
-			dom.cinematicOverlayText.style.opacity = '1';
-		}
-
-		await typeWriter(dom.cinematicOverlayText, tamilText);
-
-		// Hold Tamil for 3.5 seconds
-		await wait(3500);
-
-		dom.cinematicOverlayText.classList.add('is-visible');
-		announce(englishText + ' ' + tamilText);
-	}
-
-	function typeWriter(element, text) {
-		return new Promise((resolve) => {
-			element.textContent = '';
-
-			if (state.reducedMotion) {
-				element.textContent = text;
-				resolve();
-				return;
-			}
-
-			let i = 0;
-			const typeNext = () => {
-				if (i >= text.length) {
-					resolve();
-					return;
-				}
-				element.textContent += text[i];
-				i += 1;
-				setTimeout(typeNext, random(CONFIG.TYPEWRITER_MS_MIN, CONFIG.TYPEWRITER_MS_MAX));
-			};
-			typeNext();
-		});
-	}
-
-	/* --- transformMoon: crossfades the realistic white moon into the
-	   cute pink heart moon, with a gentle scale swell, once the memory
-	   text has finished and the reader has had a moment to sit with it. --- */
-	async function transformMoon() {
-		const whiteMoon = document.querySelector('.cinematic-moon-white');
-		const pinkMoon = document.querySelector('.cinematic-moon-pink');
-
-		if (!whiteMoon || !pinkMoon) return;
-
-		if (state.reducedMotion || !hasGSAP()) {
-			whiteMoon.style.opacity = '0';
-			pinkMoon.style.opacity = '1';
-			return;
-		}
-
-		return new Promise((resolve) => {
-			const tl = window.gsap.timeline({ onComplete: resolve });
-
-			tl.to(whiteMoon, {
-				opacity: 0,
-				duration: 1.5,
-				ease: 'power2.inOut'
-			});
-
-			tl.to(pinkMoon, {
-				opacity: 1,
-				duration: 1.5,
-				ease: 'power2.inOut'
-			}, '<');
-
-			tl.fromTo(pinkMoon,
-				{ scale: 0.96 },
-				{ scale: 1.03, duration: 1.5, ease: 'sine.inOut' },
-				'<'
-			);
-		});
-	}
-
-	async function hideCinematicMemory() {
-		if (!dom.cinematicOverlayText) return;
-		dom.cinematicOverlayText.classList.remove('is-visible');
-		await wait(CINEMATIC.TEXT_FADE_MS);
-		dom.cinematicOverlayText.textContent = '';
-		dom.cinematicOverlayText.classList.remove('tamil-text');
-
-		/* Fade out the cinematic moon after the memory text finishes */
-		if (dom.cinematicMoon && hasGSAP() && !state.reducedMotion) {
-			window.gsap.to(dom.cinematicMoon, {
-				opacity: 0,
-				duration: 1.2,
-				ease: "power2.inOut"
-			});
-
-			window.gsap.to(dom.cinematicMoonGlow, {
-				opacity: 0,
-				duration: 1.2,
-				ease: "power2.inOut"
-			});
-		}
-	}
-
-	/* --- Release: dust rises, heart dissolves into light, flies to meter --- */
-	async function releaseHeart(heart, startRect) {
-		clearCinematicDust();
-		safePlay(dom.magicSparkleSound);
-
-		heart.element.classList.add('is-dissolving');
-		await wait(CINEMATIC.DISSOLVE_MS * 0.4);
-
-		spawnBurstParticles(heart);
-		flyHeartToMeter(heart, startRect);
-		safePlay(dom.pianoNoteSound);
-
-		await wait(CINEMATIC.DISSOLVE_MS * 0.6);
-
-		heart.element.classList.add('is-collected');
-		heart.element.classList.remove('is-focused', 'is-dissolving');
-	}
-
-	/* --- Clear: the stage fades away and the whole world slowly wakes
-	   back up together — moon opacity, stars, fireflies and fog all
-	   resume in step with the overlay's fade, and the moon's glow
-	   returns on its own natural transition once .scene--frozen lifts,
-	   rather than anything snapping back instantly. --- */
-	function clearStage() {
-		if (!dom.cinematicOverlay) return Promise.resolve();
-		dom.cinematicOverlay.setAttribute('aria-hidden', 'true');
-		unfreezeWorld();
-
-		/* Step 3: Reset moon for next heart */
-		if (dom.cinematicMoonWhite && dom.cinematicMoonPink) {
-			if (hasGSAP()) {
-				window.gsap.set(dom.cinematicMoonWhite, {
-					opacity: 1
-				});
-				window.gsap.set(dom.cinematicMoonPink, {
-					opacity: 0
-				});
-			} else {
-				dom.cinematicMoonWhite.style.opacity = "1";
-				dom.cinematicMoonPink.style.opacity = "0";
-			}
-		}
-
-		/* Fix 4 — Emergency stop at the end of the cinematic sequence */
-		if (dom.heartbeatSound) {
-			dom.heartbeatSound.pause();
-			dom.heartbeatSound.currentTime = 0;
-		}
-
-		const duration = CINEMATIC.STAGE_CLEAR_MS;
-
-		if (hasGSAP() && !state.reducedMotion) {
-			return new Promise((resolve) => {
-				const tl = window.gsap.timeline({ onComplete: resolve });
-				tl.to(dom.cinematicOverlay, {
-					opacity: 0,
-					duration: duration / 1000,
-					ease: 'power2.inOut'
-				}, 0);
-				if (dom.moon) {
-					tl.to(dom.moon, {
-						opacity: 1,
-						duration: duration / 1000,
-						ease: 'power2.inOut',
-						clearProps: 'opacity'
-					}, 0);
-				}
-				if (dom.worldBreathTargets.length) {
-					tl.to(dom.worldBreathTargets, {
-						opacity: 1,
-						duration: duration / 1000,
-						ease: 'power2.inOut',
-						clearProps: 'opacity'
-					}, 0);
-				}
-			});
-		}
-
-		dom.cinematicOverlay.style.transition = `opacity ${duration}ms ease-in-out`;
-		dom.cinematicOverlay.style.opacity = '0';
-		if (dom.moon) dom.moon.style.opacity = '';
-		dom.worldBreathTargets.forEach((el) => { el.style.opacity = ''; });
-		return wait(duration);
-	}
-
-	/* ==================================================
-	   PARTICLE BURST
-	================================================== */
-	function spawnBurstParticles(heart) {
-		const rect = heart.element.getBoundingClientRect();
-		const originX = rect.left + rect.width / 2;
-		const originY = rect.top + rect.height / 2;
-		const count = randomInt(CONFIG.BURST_PARTICLES_MIN, CONFIG.BURST_PARTICLES_MAX);
-
-		for (let i = 0; i < count; i++) {
-			const particle = document.createElement('span');
-			particle.className = 'heart-burst-particle';
-			particle.style.left = `${originX}px`;
-			particle.style.top = `${originY}px`;
-			document.body.appendChild(particle);
-
-			const angle = random(0, Math.PI * 2);
-			const distance = random(20, 70);
-			const dx = Math.cos(angle) * distance;
-			const dy = Math.sin(angle) * distance;
-			const rotate = random(-180, 180);
-			const duration = random(0.5, 0.9);
-
-			animateBurstParticle(particle, dx, dy, rotate, duration);
-		}
-	}
-
-	function animateBurstParticle(particle, dx, dy, rotate, duration) {
-		if (hasGSAP() && !state.reducedMotion) {
-			window.gsap.to(particle, {
-				x: dx,
-				y: dy,
-				rotate,
-				opacity: 0,
-				scale: random(0.4, 1.1),
-				duration,
-				ease: 'power2.out',
-				onComplete: () => particle.remove()
-			});
-		} else {
-			particle.style.transition = `transform ${duration}s ease-out, opacity ${duration}s ease-out`;
-			requestAnimationFrame(() => {
-				particle.style.transform = `translate(${dx}px, ${dy}px) rotate(${rotate}deg)`;
-				particle.style.opacity = '0';
-			});
-			setTimeout(() => particle.remove(), duration * 1000);
-		}
-	}
-
-	/* ==================================================
-	   GOLDEN TRAIL SPARKLES DURING FLIGHT
-	================================================== */
-	function spawnHeartTrail(flightElement, durationSeconds) {
-		if (state.reducedMotion) return;
-
-		const trailInterval = setInterval(() => {
-			const rect = flightElement.getBoundingClientRect();
-			const particle = document.createElement('span');
-			particle.className = 'heart-trail-particle';
-			particle.style.left = `${rect.left + rect.width / 2}px`;
-			particle.style.top = `${rect.top + rect.height / 2}px`;
-			document.body.appendChild(particle);
-
-			if (hasGSAP()) {
-				window.gsap.to(particle, {
-					opacity: 0,
-					scale: 0.3,
-					y: '+=10',
-					duration: 0.6,
-					ease: 'power1.out',
-					onComplete: () => particle.remove()
-				});
-			} else {
-				particle.style.transition = 'opacity 0.6s ease-out, transform 0.6s ease-out';
-				requestAnimationFrame(() => {
-					particle.style.opacity = '0';
-					particle.style.transform = 'translateY(10px) scale(0.3)';
-				});
-				setTimeout(() => particle.remove(), 600);
-			}
-		}, CONFIG.TRAIL_INTERVAL_MS);
-
-		setTimeout(() => clearInterval(trailInterval), durationSeconds * 1000);
-	}
-
-	/* ==================================================
-	   HEART FLIGHT TO LOVE METER
-	================================================== */
-	function flyHeartToMeter(heart, precomputedStartRect) {
-		if (!dom.loveMeter) return;
-		const startRect = precomputedStartRect || heart.element.getBoundingClientRect();
-		const endRect = dom.loveMeter.getBoundingClientRect();
-
-		const flight = document.createElement('div');
-		flight.className = 'heart';
-		flight.style.setProperty('--heart-size', heart.element.style.getPropertyValue('--heart-size'));
-		flight.style.left = `${startRect.left}px`;
-		flight.style.top = `${startRect.top}px`;
-		flight.style.position = 'fixed';
-		flight.style.animation = 'none';
-		flight.innerHTML = heart.element.querySelector('svg').outerHTML;
-		flight.setAttribute('aria-hidden', 'true');
-		document.body.appendChild(flight);
-
-		const duration = random(CONFIG.FLIGHT_DURATION_MIN, CONFIG.FLIGHT_DURATION_MAX);
-		const midX = (startRect.left + endRect.left) / 2 + random(-60, 60);
-		const midY = Math.min(startRect.top, endRect.top) - random(40, 100);
-
-		/* Soft golden trail follows the heart the whole flight */
-		spawnHeartTrail(flight, duration);
-
-		if (hasGSAP() && window.gsap.plugins && window.MotionPathPlugin) {
-			window.gsap.registerPlugin(window.MotionPathPlugin);
-		}
-
-		if (hasGSAP() && !state.reducedMotion) {
-			window.gsap.to(flight, {
-				motionPath: {
-					path: [
-						{ x: 0, y: 0 },
-						{ x: midX - startRect.left, y: midY - startRect.top },
-						{ x: endRect.left - startRect.left, y: endRect.top - startRect.top }
-					],
-					curviness: 1.6
-				},
-				scale: 0.3,
-				opacity: 0.2,
-				duration,
-				ease: 'power2.inOut',
-				onComplete: () => flight.remove()
-			});
-		} else {
-			flight.style.transition = `transform ${duration}s ease-in-out, opacity ${duration}s ease-in-out`;
-			requestAnimationFrame(() => {
-				flight.style.transform = `translate(${endRect.left - startRect.left}px, ${endRect.top - startRect.top}px) scale(0.3)`;
-				flight.style.opacity = '0.2';
-			});
-			setTimeout(() => flight.remove(), duration * 1000);
-		}
-
-		safePlay(dom.magicSparkleSound);
-	}
-
-	/* ==================================================
-	   8. LOVE METER
-	================================================== */
-	function updateProgress() {
-		const percentage = (state.heartsCollected / state.totalHearts) * 100;
-
-		if (dom.progressFill) {
-			dom.progressFill.style.width = `${percentage}%`;
-		}
-		if (dom.progressText) {
-			dom.progressText.textContent = `${state.heartsCollected} / ${state.totalHearts} Hearts Collected`;
-		}
-		if (dom.loveMeterTrack) {
-			dom.loveMeterTrack.setAttribute('aria-valuenow', String(state.heartsCollected));
-		}
-	}
-
-	/* Brief glass glow + traveling shine whenever the meter updates */
-	function pulseLoveMeter() {
-		if (dom.loveMeterGlass) {
-			dom.loveMeterGlass.classList.add('is-pulsing');
-			setTimeout(() => dom.loveMeterGlass.classList.remove('is-pulsing'), CONFIG.METER_PULSE_MS);
-		}
-		if (dom.progressFill) {
-			dom.progressFill.classList.remove('is-shining');
-			// eslint-disable-next-line no-unused-expressions
-			void dom.progressFill.offsetWidth; // restart animation
-			dom.progressFill.classList.add('is-shining');
-			setTimeout(() => dom.progressFill.classList.remove('is-shining'), 950);
-		}
-	}
-
-	/* ==================================================
-	   9. SCENE EVOLUTION
-	================================================== */
-	function brightenWorld() {
-		const t = state.heartsCollected / state.totalHearts;
-		setState({ sceneBrightness: t });
-
-		document.documentElement.style.setProperty('--glow-intensity', String(lerp(1, 1.6, t)));
-
-		if (t > 0.2) {
-			dom.body.classList.add('scene--warm');
-		}
-
-		if (state.heartsCollected % 4 === 0) {
-			generateParticles(4);
-		}
-	}
-
-	/* ==================================================
-	   10. AUDIO
-	================================================== */
-	function safePlay(audioElement) {
-		if (!audioElement) return;
-		const playPromise = audioElement.play();
-		if (playPromise && typeof playPromise.catch === 'function') {
-			playPromise.catch(() => {
-				/* Autoplay blocked or playback failed — fail silently */
-			});
-		}
-	}
-
-	function fadeAudio(audioElement, targetVolume, duration) {
-		if (!audioElement) return Promise.resolve();
-		if (state.reducedMotion || !hasGSAP()) {
-			audioElement.volume = clamp(targetVolume, 0, 1);
-			return Promise.resolve();
-		}
-		return new Promise((resolve) => {
-			window.gsap.to(audioElement, {
-				volume: clamp(targetVolume, 0, 1),
-				duration: duration / 1000,
-				ease: 'power1.inOut',
-				onComplete: resolve
-			});
-		});
-	}
-
-	/* --- unlockAudioElement / unlockAllAudioForMobile ------------------
-	   Mobile browsers (iOS Safari, Chrome/Android, Samsung Internet) will
-	   only let an <audio> element start playing programmatically if
-	   play() has already run at least once inside the call stack of a
-	   genuine user gesture (tap/click/keydown). Several of this chapter's
-	   sound layers — heartbeatSound, pianoNoteSound, magicSparkleSound,
-	   finalMagicSound — are first triggered from deep inside the async
-	   collectHeart() sequence, well after any setTimeout/await delay, so
-	   on strict mobile browsers that later play() call can be silently
-	   rejected even though it looks fine on desktop.
-
-	   The fix is the standard "audio unlock" pattern: on the very first
-	   tap anywhere on the page, synchronously call play() on every sound
-	   element once (immediately pausing and rewinding it again). That one
-	   real user-gesture play() "arms" each element so every later
-	   asynchronous play() call — no matter how far from the original tap —
-	   is allowed to actually produce sound. This changes nothing about
-	   *when* sounds play or how loud they are; it only makes sure they
-	   are allowed to play at all on mobile. --- */
-	function unlockAudioElement(audioElement) {
-		if (!audioElement) return;
-		try {
-			const playPromise = audioElement.play();
-			if (playPromise && typeof playPromise.then === 'function') {
-				playPromise
-					.then(() => {
-						audioElement.pause();
-						audioElement.currentTime = 0;
-					})
-					.catch(() => {
-						/* Priming play() itself was rejected — harmless; a later
-						   safePlay() will simply try again and may still fail on
-						   this element, but it won't break anything else. */
-					});
-			} else {
-				audioElement.pause();
-				audioElement.currentTime = 0;
-			}
-		} catch (e) {
-			/* Never let audio unlocking crash the interaction */
-		}
-	}
-
-	function unlockAllAudioForMobile() {
-		[
-			dom.heartbeatSound,
-			dom.pianoNoteSound,
-			dom.magicSparkleSound,
-			dom.finalMagicSound,
-			dom.heartCollectSound
-		].forEach(unlockAudioElement);
-	}
-
-	function initMusic() {
-		if (!dom.ambientMusic) return;
-		dom.ambientMusic.volume = 0;
-
-		const startMusic = () => {
-			if (state.musicPlaying) return;
-			/* Prime every other sound layer in the same gesture that starts
-			   the ambient track, so cinematic sounds triggered later (after
-			   awaits/timeouts) are still allowed to play on mobile. */
-			unlockAllAudioForMobile();
-			safePlay(dom.ambientMusic);
-			fadeAudio(dom.ambientMusic, 0.35, CONFIG.MUSIC_FADE);
-			setState({ musicPlaying: true });
-			updateMusicToggleUI();
-			document.removeEventListener('pointerdown', startMusic);
-			document.removeEventListener('touchend', startMusic);
-		};
-
-		document.addEventListener('pointerdown', startMusic, { once: true });
-		/* touchend fallback: some Android/iOS browser + in-app webview
-		   combinations only recognize a gesture as "real" for autoplay
-		   purposes on touchend rather than touchstart/pointerdown. */
-		document.addEventListener('touchend', startMusic, { once: true, passive: true });
-
-		if (dom.musicToggle) {
-			dom.musicToggle.addEventListener('click', toggleMusic);
-		}
-	}
-
-	function toggleMusic() {
-		if (!dom.ambientMusic) return;
-		if (state.musicPlaying) {
-			fadeAudio(dom.ambientMusic, 0, CONFIG.MUSIC_FADE).then(() => dom.ambientMusic.pause());
-			setState({ musicPlaying: false });
-		} else {
-			unlockAllAudioForMobile();
-			safePlay(dom.ambientMusic);
-			fadeAudio(dom.ambientMusic, 0.35, CONFIG.MUSIC_FADE);
-			setState({ musicPlaying: true });
-		}
-		updateMusicToggleUI();
-	}
-
-	function updateMusicToggleUI() {
-		if (!dom.musicToggle) return;
-		dom.musicToggle.setAttribute('aria-pressed', String(state.musicPlaying));
-		dom.musicToggle.setAttribute('aria-label', state.musicPlaying ? 'Pause ambient music' : 'Play ambient music');
-		if (dom.musicPlayIcon) dom.musicPlayIcon.hidden = state.musicPlaying;
-		if (dom.musicPauseIcon) dom.musicPauseIcon.hidden = !state.musicPlaying;
-	}
-
-	/* ==================================================
-	   CHECK COMPLETION
-	================================================== */
-	function checkCompletion() {
-		if (state.heartsCollected < state.totalHearts) return;
-		triggerFinalSequence();
-	}
-
-	/* ==================================================
-	   FINAL SEQUENCE (Heart 20)
-	================================================== */
-	async function triggerFinalSequence() {
-		setState({ interactionLocked: true });
-
-		/* Darken the world slightly longer before the big reveal */
-		dom.body.classList.add('scene--finale');
-		await wait(CONFIG.FINALE_DARKEN_MS);
-		dom.body.classList.remove('scene--finale');
-
-		const pauseDuration = randomInt(CONFIG.FINAL_PAUSE_MIN, CONFIG.FINAL_PAUSE_MAX);
-
-		safePlay(dom.finalMagicSound);
-
-		dom.body.classList.add('scene--bright');
-		if (dom.loveMeter) dom.loveMeter.classList.add('is-complete');
-		document.documentElement.style.setProperty('--glow-intensity', '2.0');
-
-		/* Moon brightens, golden particles surround the whole scene */
-		if (dom.moon) dom.moon.style.filter = 'brightness(1.4)';
-		generateParticles(18);
-
-		await wait(pauseDuration);
-
-		await revealPopup();
-	}
-
-	/* ==================================================
-	   11. POPUP
-	================================================== */
-	async function revealPopup() {
-		if (!dom.popup) return;
-		setState({ lastFocusedElement: document.activeElement, popupOpen: true });
-
-		dom.popup.hidden = false;
-
-		if (hasGSAP() && !state.reducedMotion) {
-			await new Promise((resolve) => {
-				window.gsap.to(dom.popupGlass, {
-					opacity: 1,
-					y: 0,
-					filter: 'blur(0px)',
-					duration: 1,
-					ease: 'power3.out',
-					onComplete: resolve
-				});
-			});
-		} else {
-			dom.popupGlass.style.opacity = '1';
-			dom.popupGlass.style.transform = 'translateY(0)';
-			dom.popupGlass.style.filter = 'blur(0px)';
-		}
-
-		announce('You collected every heart. A message has appeared.');
-
-		if (dom.popupContinueButton) {
-			dom.popupContinueButton.focus();
-		}
-
-		enableContinueButton();
-		attachPopupFocusTrap();
-	}
-
-	function attachPopupFocusTrap() {
-		if (!dom.popup) return;
-		dom.popup.addEventListener('keydown', handlePopupKeydown);
-	}
-
-	function handlePopupKeydown(event) {
-		if (!state.popupOpen) return;
-		if (event.key !== 'Tab') return;
-
-		const focusable = dom.popup.querySelectorAll('button, [href], [tabindex]:not([tabindex="-1"])');
-		if (!focusable.length) return;
-
-		const first = focusable[0];
-		const last = focusable[focusable.length - 1];
-
-		if (event.shiftKey && document.activeElement === first) {
-			event.preventDefault();
-			last.focus();
-		} else if (!event.shiftKey && document.activeElement === last) {
-			event.preventDefault();
-			first.focus();
-		}
-	}
-
-	/* ==================================================
-	   12. CONTINUE BUTTON
-	================================================== */
-	function enableContinueButton() {
-		if (!dom.popupContinueButton) return;
-		setState({ continueEnabled: true });
-		dom.popupContinueButton.disabled = false;
-	}
-
-	function prepareContinueButton() {
-		if (dom.popupContinueButton) {
-			dom.popupContinueButton.addEventListener('click', handleContinueActivation);
-		}
-		if (dom.continueButton) {
-			dom.continueButton.addEventListener('click', handleContinueActivation);
-		}
-	}
-
-	let continueActivated = false;
-
-	function handleContinueActivation() {
-		if (continueActivated || !state.continueEnabled) return;
-		continueActivated = true;
-
-		if (dom.popupContinueButton) dom.popupContinueButton.disabled = true;
-		if (dom.continueButton) dom.continueButton.disabled = true;
-
-		beginCinematicEnding();
-	}
-
-	/* ==================================================
-	   13. PAGE TRANSITION / CINEMATIC ENDING
-	================================================== */
-	async function beginCinematicEnding() {
-		setState({ interactionLocked: true });
-		stopAnimationLoop();
-
-		await wait(300);
-
-		await fadeElement(dom.popupGlass, 0);
-		if (dom.popup) dom.popup.hidden = true;
-
-		await Promise.all([
-			fadeElement(dom.hero, 0),
-			fadeElement(dom.loveMeter, 0)
-		]);
-
-		document.documentElement.style.setProperty('--glow-intensity', '2.2');
-		safePlay(dom.magicSparkleSound);
-
-		await wait(200);
-		await triggerFlash();
-
-		fadeAudio(dom.ambientMusic, 0, CONFIG.MUSIC_FADE).then(() => {
-			if (dom.ambientMusic) dom.ambientMusic.pause();
-		});
-
-		await wait(300);
-		window.location.href = dom.chapterSixLink ? dom.chapterSixLink.href : CONFIG.NEXT_CHAPTER_URL;
-	}
-
-	function fadeElement(element, targetOpacity) {
-		if (!element) return Promise.resolve();
-		if (hasGSAP() && !state.reducedMotion) {
-			return new Promise((resolve) => {
-				window.gsap.to(element, {
-					opacity: targetOpacity,
-					duration: 0.6,
-					ease: 'power2.inOut',
-					onComplete: resolve
-				});
-			});
-		}
-		element.style.transition = 'opacity 0.6s ease-in-out';
-		element.style.opacity = String(targetOpacity);
-		return wait(600);
-	}
-
-	function triggerFlash() {
-		if (!dom.flashOverlay) return Promise.resolve();
-		dom.flashOverlay.hidden = false;
-
-		if (hasGSAP() && !state.reducedMotion) {
-			return new Promise((resolve) => {
-				const timeline = window.gsap.timeline({ onComplete: resolve });
-				timeline
-					.to(dom.flashOverlay, { opacity: 1, duration: CONFIG.FLASH_DURATION / 2000, ease: 'power2.in' })
-					.to(dom.flashOverlay, { opacity: 0, duration: CONFIG.FLASH_DURATION / 2000, ease: 'power2.out' });
-			});
-		}
-
-		dom.flashOverlay.style.transition = `opacity ${CONFIG.FLASH_DURATION / 2}ms ease-in-out`;
-		dom.flashOverlay.style.opacity = '1';
-		return wait(CONFIG.FLASH_DURATION);
-	}
-
-	/* ==================================================
-	   14. EVENTS
-	================================================== */
-	function setupEvents() {
-		attachHeartListeners();
-		prepareContinueButton();
-
-		document.addEventListener('visibilitychange', handleVisibilityChange);
-		window.addEventListener('resize', debounce(handleResize, 200));
-	}
-
-	function handleVisibilityChange() {
-		if (document.hidden) {
-			stopAnimationLoop();
-		} else {
-			if (!state.reducedMotion) startAnimationLoop();
-
-			/* Mobile OSes frequently pause background <audio> the moment a
-			   tab/app is backgrounded (iOS Safari, Chrome/Android battery
-			   saving, etc). Resume the ambient track if it was supposed to
-			   still be playing when the page regains focus, so returning to
-			   the tab doesn't leave the BGM silently stopped. */
-			if (state.musicPlaying && dom.ambientMusic && dom.ambientMusic.paused) {
-				safePlay(dom.ambientMusic);
-			}
-		}
-	}
-
-	function handleResize() {
-		const bounds = getFieldBounds();
-		for (const heart of state.hearts) {
-			if (heart.collected) continue;
-			heart.baseX = clamp(heart.baseX, bounds.padding, Math.max(bounds.padding, bounds.width - bounds.padding));
-			heart.baseY = clamp(heart.baseY, bounds.padding, Math.max(bounds.padding, bounds.height - bounds.padding));
-			heart.element.style.left = `${heart.baseX}px`;
-			heart.element.style.top = `${heart.baseY}px`;
-		}
-	}
-
-	/* ==================================================
-	   HERO / ENTRANCE ANIMATION
-	================================================== */
-	function playEntranceAnimation() {
-		const elements = [dom.heroLabel, dom.heroTitle, dom.heroSubtitle, dom.heroHint].filter(Boolean);
-
-		if (hasGSAP() && !state.reducedMotion) {
-			window.gsap.set(dom.hero, { opacity: 1 });
-			window.gsap.set(dom.loveMeter, { opacity: 1 });
-			window.gsap.from(elements, {
-				opacity: 0,
-				y: 16,
-				duration: 0.9,
-				ease: 'power3.out',
-				stagger: 0.15
-			});
-			window.gsap.from(dom.loveMeter, {
-				opacity: 0,
-				y: 16,
-				duration: 0.9,
-				delay: 0.5,
-				ease: 'power3.out'
-			});
-		} else {
-			if (dom.hero) dom.hero.style.opacity = '1';
-			if (dom.loveMeter) dom.loveMeter.style.opacity = '1';
-		}
-	}
-
-	/* ==================================================
-	   4. INITIALIZATION
-	================================================== */
-	async function init() {
-		try {
-			cacheDom();
-			setupAccessibility();
-			generateStars();
-			generateParticles();
-			generateFireflies();
-			generateHearts();
-			updateProgress();
-			initMusic();
-			setupEvents();
-			prepareContinueButton();
-
-			/* Fix 1 — Increase heartbeat volume */
-			if (dom.heartbeatSound) {
-				dom.heartbeatSound.volume = 1.0;
-			}
-
-			playEntranceAnimation();
-			startAnimationLoop();
-
-			await wait(600);
-			fadeLoadingScreen();
-			setState({ interactionLocked: false });
-		} catch (error) {
-			/* Never let initialization crash the page */
-			fadeLoadingScreen();
-			setState({ interactionLocked: false });
-		}
-	}
-
-	function fadeLoadingScreen() {
-		if (!dom.loadingOverlay) return;
-		dom.loadingOverlay.classList.add('is-hidden');
-	}
-
-	/* ==================================================
-	   17. CLEANUP
-	================================================== */
-	window.addEventListener('beforeunload', () => {
-		stopAnimationLoop();
-	});
-
-	/* ==================================================
-	   BOOT
-	================================================== */
-	if (document.readyState === 'loading') {
-		document.addEventListener('DOMContentLoaded', init);
-	} else {
-		init();
-	} 
-})();
+/* ==========================================================
+   1. DESIGN TOKENS
+========================================================== */
+:root {
+	/* Midnight palette */
+	--color-midnight-deep: #05061a;
+	--color-midnight: #0b0f2a;
+	--color-navy-soft: #131a3d;
+	--color-moonlight-blue: #22305e;
+
+	/* Pink palette */
+	--color-luxury-pink: #e8a9c0;
+	--color-soft-rose: #f2c9d6;
+	--color-rose-deep: #c97b96;
+
+	/* Champagne gold palette */
+	--color-champagne: #e9d3a3;
+	--color-champagne-bright: #f4e4bb;
+	--color-champagne-deep: #b99a63;
+
+	/* Moon whites */
+	--color-moon-white: #fbf6ea;
+	--color-warm-ivory: #f7ecd9;
+	--color-white-glow: #ffffff;
+
+	/* Glass */
+	--glass-fill: rgba(251, 246, 234, 0.06);
+	--glass-fill-strong: rgba(251, 246, 234, 0.1);
+	--glass-border: rgba(233, 211, 163, 0.25);
+	--glass-highlight: rgba(255, 255, 255, 0.35);
+	--glass-blur: 18px;
+
+	/* Shadow system */
+	--shadow-soft: 0 20px 60px rgba(0, 0, 0, 0.45);
+	--shadow-glow-pink: 0 0 40px rgba(232, 169, 192, 0.35);
+	--shadow-glow-gold: 0 0 30px rgba(233, 211, 163, 0.3);
+	--shadow-inset: inset 0 1px 1px rgba(255, 255, 255, 0.15);
+
+	/* Border */
+	--border-champagne: rgba(233, 211, 163, 0.4);
+	--border-soft: rgba(255, 255, 255, 0.12);
+
+	/* Radius */
+	--radius-sm: 10px;
+	--radius-md: 18px;
+	--radius-lg: 28px;
+	--radius-pill: 999px;
+
+	/* Spacing scale */
+	--space-2xs: clamp(0.25rem, 0.3vw, 0.375rem);
+	--space-xs: clamp(0.5rem, 0.6vw, 0.75rem);
+	--space-sm: clamp(0.75rem, 1vw, 1.25rem);
+	--space-md: clamp(1.25rem, 2vw, 2rem);
+	--space-lg: clamp(2rem, 4vw, 3.5rem);
+	--space-xl: clamp(3rem, 6vw, 5.5rem);
+	--space-2xl: clamp(4rem, 9vw, 8rem);
+
+	/* Typography */
+	--font-display: 'Cormorant Garamond', 'Times New Roman', serif;
+	--font-body: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
+
+	/* Animation speeds */
+	--speed-instant: 180ms;
+	--speed-fast: 320ms;
+	--speed-medium: 650ms;
+	--speed-slow: 1200ms;
+	--speed-ambient: 8s;
+
+	/* Easing */
+	--ease-luxury: cubic-bezier(0.22, 1, 0.36, 1);
+	--ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+	--ease-breathe: cubic-bezier(0.45, 0, 0.55, 1);
+
+	/* Glow intensity */
+	--glow-intensity: 1;
+
+	/* Safe-area fallbacks (used only inside mobile media queries below) */
+	--safe-top: env(safe-area-inset-top, 0px);
+	--safe-bottom: env(safe-area-inset-bottom, 0px);
+	--safe-left: env(safe-area-inset-left, 0px);
+	--safe-right: env(safe-area-inset-right, 0px);
+}
+
+/* ==========================================================
+   2. RESET
+========================================================== */
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+	margin: 0;
+	padding: 0;
+}
+
+img,
+svg {
+	display: block;
+	max-width: 100%;
+}
+
+button {
+	font: inherit;
+	color: inherit;
+	background: none;
+	border: none;
+	cursor: pointer;
+}
+
+a {
+	color: inherit;
+	text-decoration: none;
+}
+
+html {
+	scroll-behavior: smooth;
+}
+
+/* ==========================================================
+   3. BODY
+========================================================== */
+html,
+body {
+	height: 100%;
+}
+
+body {
+	min-height: 100vh;
+	overflow-x: hidden;
+	position: relative;
+	background: var(--color-midnight-deep);
+	color: var(--color-warm-ivory);
+	font-family: var(--font-body);
+	font-weight: 400;
+	line-height: 1.6;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	text-rendering: optimizeLegibility;
+}
+
+.hidden-audio {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+}
+
+/* ==========================================================
+   4. BACKGROUND
+========================================================== */
+.background {
+	position: fixed;
+	inset: 0;
+	z-index: 0;
+	overflow: hidden;
+	pointer-events: none;
+}
+
+.sky {
+	position: absolute;
+	inset: 0;
+	background:
+		radial-gradient(ellipse 80% 50% at 50% 15%, rgba(34, 48, 94, 0.55), transparent 60%),
+		radial-gradient(ellipse 60% 40% at 20% 80%, rgba(19, 26, 61, 0.6), transparent 65%),
+		linear-gradient(180deg, var(--color-midnight) 0%, var(--color-midnight-deep) 55%, #030412 100%);
+	transition: filter 1.4s var(--ease-luxury);
+}
+
+/* ==========================================================
+   5. MOON
+========================================================== */
+.moon-glow {
+	position: absolute;
+	top: 6%;
+	left: 50%;
+	width: min(70vw, 900px);
+	height: min(70vw, 900px);
+	transform: translateX(-50%);
+	background: radial-gradient(circle, rgba(251, 246, 234, calc(0.22 * var(--glow-intensity))) 0%, rgba(233, 211, 163, calc(0.08 * var(--glow-intensity))) 35%, transparent 70%);
+	filter: blur(30px);
+	animation: moonGlowBreathe 10s var(--ease-breathe) infinite;
+	will-change: opacity, transform;
+	transition: opacity 1.2s var(--ease-luxury);
+}
+
+.moon {
+	position: absolute;
+	top: 9%;
+	left: 50%;
+	width: clamp(120px, 14vw, 190px);
+	height: clamp(120px, 14vw, 190px);
+	transform: translateX(-50%);
+	animation: moonBreathe 9s ease-in-out infinite;
+	will-change: transform, opacity;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: filter 1.4s var(--ease-luxury), opacity 1.2s var(--ease-luxury);
+}
+
+.moon__image {
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+	user-select: none;
+	pointer-events: none;
+	filter:
+		drop-shadow(0 0 25px rgba(255,255,255,.35))
+		drop-shadow(0 0 60px rgba(233,211,163,.30))
+		drop-shadow(0 0 110px rgba(233,211,163,.18));
+	transition: filter 1.2s var(--ease-luxury);
+}
+
+.moon__sparkle {
+	position: absolute;
+	top: 22%;
+	left: 68%;
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	background: var(--color-white-glow);
+	filter: blur(1px);
+	animation: sparklePulse 4.5s ease-in-out infinite;
+}
+
+@keyframes moonBreathe {
+	0%, 100% { transform: translateX(-50%) scale(1); }
+	50% { transform: translateX(-50%) scale(1.035); }
+}
+
+@keyframes moonGlowBreathe {
+	0%, 100% { opacity: 0.85; transform: translateX(-50%) scale(1); }
+	50% { opacity: 1; transform: translateX(-50%) scale(1.06); }
+}
+
+@keyframes sparklePulse {
+	0%, 100% { opacity: 0.2; transform: scale(0.8); }
+	50% { opacity: 0.9; transform: scale(1.3); }
+}
+
+/* ==========================================================
+   6. STARS
+========================================================== */
+.stars {
+	position: absolute;
+	inset: 0;
+	transition: opacity 1.2s var(--ease-luxury);
+}
+
+.star {
+	position: absolute;
+	border-radius: 50%;
+	background: var(--color-moon-white);
+	animation: starTwinkle var(--twinkle-duration, 4s) ease-in-out infinite;
+	animation-delay: var(--twinkle-delay, 0s);
+}
+
+@keyframes starTwinkle {
+	0%, 100% { opacity: var(--star-min-opacity, 0.15); }
+	50% { opacity: var(--star-max-opacity, 0.9); }
+}
+
+/* ==========================================================
+   7. PARTICLES
+========================================================== */
+.particles {
+	position: absolute;
+	inset: 0;
+	transition: opacity 1.2s var(--ease-luxury);
+}
+
+.particle {
+	position: absolute;
+	border-radius: 50%;
+	background: radial-gradient(circle, var(--color-champagne-bright), transparent 70%);
+	filter: blur(1px);
+	opacity: 0;
+	animation: particleRise var(--particle-duration, 9s) ease-in-out infinite;
+	animation-delay: var(--particle-delay, 0s);
+	will-change: transform, opacity;
+}
+
+@keyframes particleRise {
+	0% { transform: translateY(0) translateX(0); opacity: 0; }
+	10% { opacity: 0.8; }
+	85% { opacity: 0.4; }
+	100% { transform: translateY(-120vh) translateX(var(--particle-drift, 20px)); opacity: 0; }
+}
+
+/* ==========================================================
+   8. FIREFLIES
+========================================================== */
+.fireflies {
+	position: absolute;
+	inset: 0;
+	transition: opacity 1.2s var(--ease-luxury);
+}
+
+.firefly {
+	position: absolute;
+	width: var(--firefly-size, 6px);
+	height: var(--firefly-size, 6px);
+	border-radius: 50%;
+	background: var(--color-champagne-bright);
+	box-shadow: 0 0 12px 4px rgba(233, 211, 163, calc(0.6 * var(--glow-intensity)));
+	animation:
+		fireflyDrift var(--firefly-duration, 12s) var(--ease-breathe) infinite,
+		fireflyBreathe var(--firefly-breathe, 3.5s) ease-in-out infinite;
+	animation-delay: var(--firefly-delay, 0s);
+	will-change: transform, opacity;
+}
+
+@keyframes fireflyDrift {
+	0% { transform: translate(0, 0); }
+	25% { transform: translate(var(--fx1, 30px), var(--fy1, -40px)); }
+	50% { transform: translate(var(--fx2, -20px), var(--fy2, -15px)); }
+	75% { transform: translate(var(--fx3, 15px), var(--fy3, 30px)); }
+	100% { transform: translate(0, 0); }
+}
+
+@keyframes fireflyBreathe {
+	0%, 100% { opacity: 0.35; }
+	50% { opacity: 1; }
+}
+
+/* ==========================================================
+   9. FOG
+========================================================== */
+.fog {
+	position: absolute;
+	left: -10%;
+	width: 120%;
+	height: 40vh;
+	filter: blur(40px);
+	pointer-events: none;
+	transition: opacity 1.2s var(--ease-luxury);
+}
+
+.fog--back {
+	top: 10%;
+	background: linear-gradient(90deg, transparent, rgba(19, 26, 61, 0.35), transparent);
+	opacity: 0.5;
+	animation: fogDriftSlow 60s linear infinite;
+}
+
+.fog--middle {
+	top: 45%;
+	background: linear-gradient(90deg, transparent, rgba(34, 48, 94, 0.3), transparent);
+	opacity: 0.4;
+	animation: fogDriftMedium 42s linear infinite reverse;
+}
+
+.fog--front {
+	bottom: -5%;
+	top: auto;
+	background: linear-gradient(90deg, transparent, rgba(5, 6, 26, 0.55), transparent);
+	opacity: 0.6;
+	animation: fogDriftFast 28s linear infinite;
+}
+
+@keyframes fogDriftSlow {
+	0% { transform: translateX(-5%); }
+	50% { transform: translateX(5%); }
+	100% { transform: translateX(-5%); }
+}
+
+@keyframes fogDriftMedium {
+	0% { transform: translateX(-8%); }
+	50% { transform: translateX(8%); }
+	100% { transform: translateX(-8%); }
+}
+
+@keyframes fogDriftFast {
+	0% { transform: translateX(-6%); }
+	50% { transform: translateX(6%); }
+	100% { transform: translateX(-6%); }
+}
+
+/* ==========================================================
+   10. MAIN LAYOUT
+========================================================== */
+.main {
+	position: relative;
+	z-index: 1;
+	max-width: 1200px;
+	margin: 0 auto;
+	padding: var(--space-2xl) var(--space-md) var(--space-xl);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--space-xl);
+}
+
+/* ==========================================================
+   11. HERO
+========================================================== */
+.hero {
+	text-align: center;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--space-sm);
+	max-width: 640px;
+	opacity: 0;
+}
+
+.hero__label {
+	font-family: var(--font-body);
+	font-size: 0.75rem;
+	letter-spacing: 0.35em;
+	text-transform: uppercase;
+	color: var(--color-champagne);
+	opacity: 0.85;
+}
+
+.hero__title {
+	font-family: var(--font-display);
+	font-weight: 500;
+	font-size: clamp(2.4rem, 6vw, 4.2rem);
+	color: var(--color-moon-white);
+	text-shadow: 0 0 30px rgba(251, 246, 234, 0.35), 0 0 60px rgba(233, 211, 163, 0.2);
+	line-height: 1.1;
+}
+
+.hero__subtitle {
+	font-family: var(--font-display);
+	font-style: italic;
+	font-size: clamp(1.05rem, 2vw, 1.35rem);
+	color: var(--color-soft-rose);
+	opacity: 0.85;
+	max-width: 32ch;
+}
+
+.hero__hint {
+	margin-top: var(--space-2xs);
+	font-size: 0.7rem;
+	letter-spacing: 0.25em;
+	text-transform: uppercase;
+	font-weight: 300;
+	color: var(--color-warm-ivory);
+	opacity: 0.55;
+}
+
+/* ==========================================================
+   12. LOVE METER
+========================================================== */
+.love-meter {
+	width: 100%;
+	display: flex;
+	justify-content: center;
+	opacity: 0;
+}
+
+.love-meter__glass {
+	width: min(100%, 420px);
+	padding: var(--space-md) var(--space-lg);
+	border-radius: var(--radius-lg);
+	background: var(--glass-fill);
+	border: 1px solid var(--glass-border);
+	backdrop-filter: blur(var(--glass-blur));
+	-webkit-backdrop-filter: blur(var(--glass-blur));
+	box-shadow: var(--shadow-soft), var(--shadow-inset);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--space-sm);
+	transition: box-shadow 0.8s var(--ease-luxury);
+}
+
+.love-meter__title {
+	font-size: 0.72rem;
+	letter-spacing: 0.3em;
+	text-transform: uppercase;
+	font-weight: 500;
+	color: var(--color-champagne);
+	opacity: 0.85;
+}
+
+.love-meter__track {
+	position: relative;
+	width: 100%;
+	height: 6px;
+	border-radius: var(--radius-pill);
+	background: rgba(255, 255, 255, 0.08);
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	overflow: hidden;
+}
+
+.love-meter__fill {
+	position: relative;
+	height: 100%;
+	width: 0%;
+	border-radius: var(--radius-pill);
+	background: linear-gradient(90deg, var(--color-rose-deep), var(--color-luxury-pink), var(--color-champagne));
+	box-shadow: 0 0 14px rgba(232, 169, 192, 0.6);
+	transition: width var(--speed-slow) var(--ease-luxury);
+	overflow: hidden;
+}
+
+.love-meter__fill::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+	width: 40%;
+	animation: meterShine 3.5s ease-in-out infinite;
+}
+
+@keyframes meterShine {
+	0% { transform: translateX(-120%); }
+	100% { transform: translateX(280%); }
+}
+
+.love-meter__count {
+	font-size: 0.85rem;
+	font-weight: 400;
+	letter-spacing: 0.04em;
+	color: var(--color-warm-ivory);
+	opacity: 0.85;
+}
+
+.love-meter.is-complete .love-meter__fill {
+	box-shadow: 0 0 28px rgba(233, 211, 163, 0.85);
+}
+
+/* --- brief glow pulse + traveling shine on each collection --- */
+.love-meter__glass.is-pulsing {
+	box-shadow: var(--shadow-soft), var(--shadow-glow-gold), var(--shadow-inset);
+}
+
+.love-meter__fill.is-shining::before {
+	content: '';
+	position: absolute;
+	inset: 0;
+	width: 30%;
+	background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.85), transparent);
+	filter: blur(1px);
+	animation: meterShineTravel 0.9s var(--ease-luxury);
+}
+
+@keyframes meterShineTravel {
+	0% { transform: translateX(-120%); opacity: 0; }
+	15% { opacity: 1; }
+	100% { transform: translateX(320%); opacity: 0; }
+}
+
+/* ==========================================================
+   13. HEART FIELD
+========================================================== */
+.heart-field {
+	position: relative;
+	width: 100%;
+	min-height: 55vh;
+	overflow: visible;
+}
+
+.heart-container {
+	position: absolute;
+	inset: 0;
+	overflow: visible;
+}
+
+/* ==========================================================
+   14. HEART COMPONENT
+========================================================== */
+.heart {
+	position: absolute;
+	width: var(--heart-size, 34px);
+	height: var(--heart-size, 34px);
+	cursor: pointer;
+	transform-origin: center;
+	will-change: transform, opacity;
+	filter: drop-shadow(0 0 10px rgba(232, 169, 192, calc(0.55 * var(--glow-intensity))));
+	animation: heartBreathe var(--heart-pulse, 3.2s) ease-in-out infinite;
+	transition: filter var(--speed-medium) var(--ease-soft);
+}
+
+.heart svg {
+	width: 100%;
+	height: 100%;
+	overflow: visible;
+}
+
+.heart__glass {
+	fill: url(#heartGradient);
+}
+
+@keyframes heartBreathe {
+	0%, 100% { scale: 0.98; }
+	50% { scale: 1.02; }
+}
+
+.heart:hover,
+.heart:focus-visible {
+	filter: drop-shadow(0 0 22px rgba(232, 169, 192, 0.9));
+	transform: translateY(-4px) scale(1.08);
+	outline: none;
+}
+
+.heart:focus-visible {
+	outline: 2px solid var(--color-champagne);
+	outline-offset: 6px;
+	border-radius: 50%;
+}
+
+.heart:active {
+	transform: scale(0.92);
+}
+
+.heart.is-collected {
+	pointer-events: none;
+	animation: none;
+	transition: opacity var(--speed-slow) var(--ease-luxury), filter var(--speed-slow) var(--ease-luxury);
+	opacity: 0;
+	filter: blur(6px);
+}
+
+/* ==========================================================
+   HEART BURST PARTICLES
+========================================================== */
+.heart-burst-particle {
+	position: absolute;
+	width: 5px;
+	height: 5px;
+	border-radius: 50%;
+	background: var(--color-champagne-bright);
+	box-shadow: 0 0 8px rgba(233, 211, 163, 0.8);
+	pointer-events: none;
+	will-change: transform, opacity;
+}
+
+/* ==========================================================
+   HEART FLIGHT — GOLDEN TRAIL SPARKLES
+========================================================== */
+.heart-trail-particle {
+	position: fixed;
+	width: 4px;
+	height: 4px;
+	border-radius: 50%;
+	background: radial-gradient(circle, var(--color-champagne-bright), rgba(244, 228, 187, 0));
+	box-shadow: 0 0 10px rgba(233, 211, 163, 0.85), 0 0 18px rgba(232, 169, 192, 0.35);
+	pointer-events: none;
+	z-index: 19;
+	will-change: transform, opacity;
+}
+
+/* ==========================================================
+   CINEMATIC HEARTBEAT + MEMORY STAGE
+   A true "world breathing" sequence: the near-black overlay,
+   the moon, the stars, the fog and fireflies all rise and
+   fall together with every heartbeat — never a flash, never
+   a blink. Only the held heart and (later) the memory text
+   sit above this breathing darkness. Beat-by-beat opacity is
+   driven from JS (see CINEMATIC config + setWorldVisibility)
+   so the whole scene moves as one.
+========================================================== */
+.cinematic-overlay {
+	position: fixed;
+	inset: 0;
+	z-index: 16;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: #020208;
+	opacity: 0;
+	pointer-events: none;
+	will-change: opacity;
+}
+
+/* --- Cinematic Moon within the overlay --- */
+.cinematic-moon-glow {
+	position: absolute;
+	top: 16%;
+	left: 50%;
+	width: 420px;
+	height: 420px;
+	transform: translateX(-50%);
+	border-radius: 50%;
+	background: radial-gradient(
+		circle,
+		rgba(255, 255, 255, .30) 0%,
+		rgba(233, 211, 163, .18) 35%,
+		transparent 72%
+	);
+	filter: blur(55px);
+	opacity: 0;
+	transition: opacity 1.5s ease;
+	pointer-events: none;
+}
+
+.cinematic-moon {
+	position: absolute;
+	top: 14%;
+	left: 50%;
+	width: 180px;
+	height: 180px;
+	transform: translateX(-50%);
+	opacity: 0;
+	transition:
+		opacity 1.4s ease,
+		transform 8s ease;
+	z-index: 1;
+	pointer-events: none;
+}
+
+.cinematic-moon img {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+	filter:
+		drop-shadow(0 0 25px rgba(255, 255, 255, .45))
+		drop-shadow(0 0 90px rgba(233, 211, 163, .35));
+}
+
+.cinematic-moon-white {
+	opacity: 1;
+}
+
+.cinematic-moon-pink {
+	opacity: 0;
+}
+
+.cinematic-overlay__dust {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+}
+
+/* --- Memory text styling - base styles for both languages --- */
+.cinematic-overlay__text {
+	position: absolute;
+	left: 50%;
+	top: 64%;
+	transform: translate(-50%, -50%);
+	font-family: var(--font-display);
+	font-style: italic;
+	font-weight: 500;
+	/* Smaller text - works well for both English and Tamil */
+	font-size: clamp(0.95rem, 1.8vw, 1.55rem);
+	line-height: 1.8;
+	letter-spacing: 0.02em;
+	/* Wider text box so Tamil wraps less */
+	max-width: 38ch;
+	text-align: center;
+	color: var(--color-moon-white);
+	text-shadow:
+		0 0 12px rgba(251, 246, 234, 0.35),
+		0 0 30px rgba(233, 211, 163, 0.20);
+	opacity: 0;
+	transition: opacity 0.7s var(--ease-luxury);
+	z-index: 2;
+}
+
+/* --- Tamil-specific styling - smaller and wider for Tamil script --- */
+.cinematic-overlay__text.tamil-text {
+	font-size: clamp(0.85rem, 1.6vw, 1.35rem);
+	line-height: 1.9;
+	max-width: 40ch;
+}
+
+.cinematic-overlay__text.is-visible {
+	opacity: 1;
+}
+
+/* --- Golden dust that drifts in after the silence following the beats --- */
+.cinematic-dust-particle {
+	position: fixed;
+	border-radius: 50%;
+	background: radial-gradient(circle, var(--color-champagne-bright), transparent 70%);
+	box-shadow: 0 0 12px rgba(233, 211, 163, 0.85);
+	pointer-events: none;
+	z-index: 17;
+	opacity: 0;
+	will-change: transform, opacity;
+}
+
+/* --- The single heart held on stage through the whole sequence.
+   Scale is driven by GSAP during the breathing beats, so only
+   filter is left as a CSS transition here. --- */
+.heart.is-focused {
+	z-index: 17;
+	animation: none;
+	transition: filter 0.32s var(--ease-soft);
+}
+
+.heart.is-dissolving {
+	transition: opacity 1s var(--ease-luxury), filter 1s var(--ease-luxury), scale 1s var(--ease-luxury);
+	opacity: 0;
+	filter: blur(10px) brightness(2.2);
+	scale: 1.5;
+}
+
+/* ==========================================================
+   WORLD FREEZE — everything else holds still while the
+   heartbeat/memory sequence plays on stage. During the six
+   breathing beats, opacity of the moon, stars, fireflies and
+   fog is animated directly from JS in sync with the overlay
+   (see setWorldVisibility in chapter5.js); these rules cover
+   the instants just outside that window (initial freeze-in,
+   the dust/text hold, and the non-GSAP fallback).
+========================================================== */
+body.scene--frozen .moon-glow{
+    opacity:.35;
+}
+
+body.scene--frozen .moon {
+	animation-play-state: paused;
+}
+
+body.scene--frozen .moon__image {
+	filter:
+		drop-shadow(0 0 6px rgba(255, 255, 255, .12))
+		drop-shadow(0 0 14px rgba(233, 211, 163, .08));
+}
+
+body.scene--frozen .stars,
+body.scene--frozen .fireflies,
+body.scene--frozen .particles {
+	opacity: 0.05;
+}
+
+body.scene--frozen .star,
+body.scene--frozen .firefly,
+body.scene--frozen .particle {
+	animation-play-state: paused;
+}
+
+body.scene--frozen .fog {
+	animation-play-state: paused;
+	opacity: 0.15;
+}
+
+/* ==========================================================
+   FINALE DARKENING (Heart 20 — before the world brightens)
+========================================================== */
+body.scene--finale .sky {
+	filter: brightness(0.62) saturate(1.15);
+}
+
+body.scene--finale .moon-glow {
+	transition: opacity 1.4s var(--ease-luxury);
+	opacity: 0.55;
+}
+
+/* ==========================================================
+   15. GLASS CARD (POPUP)
+========================================================== */
+.popup {
+	position: fixed;
+	inset: 0;
+	z-index: 20;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: var(--space-md);
+	background: rgba(5, 6, 26, 0.55);
+	backdrop-filter: blur(6px);
+	-webkit-backdrop-filter: blur(6px);
+}
+
+.popup[hidden] {
+	display: none;
+}
+
+.popup__glass {
+	position: relative;
+	width: min(100%, 480px);
+	padding: var(--space-xl) var(--space-lg);
+	border-radius: var(--radius-lg);
+	background: var(--glass-fill-strong);
+	border: 1px solid var(--glass-border);
+	backdrop-filter: blur(24px);
+	-webkit-backdrop-filter: blur(24px);
+	box-shadow: var(--shadow-soft), var(--shadow-glow-pink), var(--shadow-inset);
+	text-align: center;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--space-sm);
+	opacity: 0;
+	transform: translateY(24px);
+	filter: blur(4px);
+}
+
+.popup__label {
+	font-size: 0.7rem;
+	letter-spacing: 0.3em;
+	text-transform: uppercase;
+	color: var(--color-champagne);
+	opacity: 0.85;
+}
+
+.popup__title {
+	font-family: var(--font-display);
+	font-weight: 500;
+	font-size: clamp(1.7rem, 4vw, 2.4rem);
+	color: var(--color-moon-white);
+	text-shadow: 0 0 25px rgba(251, 246, 234, 0.3);
+	line-height: 1.15;
+}
+
+.popup__body {
+	font-size: 1rem;
+	line-height: 1.75;
+	color: var(--color-warm-ivory);
+	max-width: 42ch;
+}
+
+.popup__secondary {
+	font-size: 0.85rem;
+	font-style: italic;
+	font-family: var(--font-display);
+	color: var(--color-soft-rose);
+	opacity: 0.75;
+}
+
+.popup__continue {
+	margin-top: var(--space-sm);
+}
+
+/* ==========================================================
+   16. CONTINUE BUTTON
+========================================================== */
+.continue-section {
+	position: relative;
+	z-index: 1;
+	display: flex;
+	justify-content: center;
+	padding: 0 var(--space-md) var(--space-2xl);
+}
+
+.continue-button,
+.popup__continue {
+	appearance: none;
+	padding: var(--space-xs) var(--space-lg);
+	min-height: 48px;
+	min-width: 44px;
+	border-radius: var(--radius-pill);
+	background: var(--glass-fill);
+	border: 1px solid var(--border-champagne);
+	color: var(--color-champagne-bright);
+	font-family: var(--font-body);
+	font-size: 0.85rem;
+	letter-spacing: 0.15em;
+	text-transform: uppercase;
+	backdrop-filter: blur(var(--glass-blur));
+	-webkit-backdrop-filter: blur(var(--glass-blur));
+	box-shadow: var(--shadow-inset);
+	transition: transform var(--speed-medium) var(--ease-luxury), box-shadow var(--speed-medium) var(--ease-luxury), border-color var(--speed-medium) var(--ease-luxury), opacity var(--speed-medium) var(--ease-luxury);
+	opacity: 0;
+}
+
+.continue-button:not([hidden]),
+.popup__continue {
+	opacity: 1;
+}
+
+.continue-button:hover,
+.popup__continue:hover {
+	transform: translateY(-3px);
+	box-shadow: var(--shadow-glow-gold), var(--shadow-inset);
+	border-color: var(--color-champagne-bright);
+}
+
+.continue-button:active,
+.popup__continue:active {
+	transform: translateY(0) scale(0.97);
+}
+
+.continue-button:disabled {
+	opacity: 0.35;
+	pointer-events: none;
+}
+
+.continue-button:focus-visible,
+.popup__continue:focus-visible,
+.heart:focus-visible,
+.music-toggle:focus-visible {
+	outline: 2px solid var(--color-champagne-bright);
+	outline-offset: 4px;
+}
+
+.chapter-six-link {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+}
+
+/* ==========================================================
+   LOADING OVERLAY
+========================================================== */
+.loading-overlay {
+	position: fixed;
+	inset: 0;
+	z-index: 100;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--color-midnight-deep);
+	transition: opacity var(--speed-slow) var(--ease-luxury), visibility var(--speed-slow) var(--ease-luxury);
+}
+
+.loading-overlay.is-hidden {
+	opacity: 0;
+	visibility: hidden;
+	pointer-events: none;
+}
+
+.loading-overlay__inner {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--space-sm);
+	text-align: center;
+}
+
+.loading-overlay__spinner {
+	width: 36px;
+	height: 36px;
+	border-radius: 50%;
+	border: 2px solid rgba(233, 211, 163, 0.2);
+	border-top-color: var(--color-champagne);
+	animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+	to { transform: rotate(360deg); }
+}
+
+.loading-overlay__text {
+	font-family: var(--font-display);
+	font-style: italic;
+	font-size: 1.1rem;
+	color: var(--color-soft-rose);
+	opacity: 0.85;
+}
+
+/* ==========================================================
+   FLASH OVERLAY
+========================================================== */
+.flash-overlay {
+	position: fixed;
+	inset: 0;
+	z-index: 200;
+	background: var(--color-moon-white);
+	opacity: 0;
+	pointer-events: none;
+}
+
+.flash-overlay[hidden] {
+	display: none;
+}
+
+/* ==========================================================
+   MUSIC TOGGLE
+========================================================== */
+.music-toggle {
+	position: fixed;
+	bottom: var(--space-md);
+	right: var(--space-md);
+	z-index: 30;
+	width: 48px;
+	height: 48px;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--glass-fill);
+	border: 1px solid var(--glass-border);
+	backdrop-filter: blur(var(--glass-blur));
+	-webkit-backdrop-filter: blur(var(--glass-blur));
+	box-shadow: var(--shadow-soft), var(--shadow-inset);
+	transition: transform var(--speed-medium) var(--ease-luxury), box-shadow var(--speed-medium) var(--ease-luxury);
+}
+
+.music-toggle:hover {
+	transform: translateY(-2px);
+	box-shadow: var(--shadow-glow-gold), var(--shadow-inset);
+}
+
+.music-toggle__icon {
+	width: 18px;
+	height: 18px;
+	fill: var(--color-champagne-bright);
+}
+
+/* ==========================================================
+   UTILITY / SCENE BRIGHTENING CLASSES
+========================================================== */
+.scene--bright {
+	--glow-intensity: 1.6;
+}
+
+body.scene--warm .sky {
+	filter: saturate(1.15) brightness(1.08);
+}
+
+/* ==========================================================
+   11. RESPONSIVE
+========================================================== */
+@media (max-width: 768px) {
+	.main {
+		padding: var(--space-xl) var(--space-sm) var(--space-lg);
+		gap: var(--space-lg);
+	}
+	.heart-field {
+		min-height: 50vh;
+	}
+	.cinematic-moon-glow {
+		width: 280px;
+		height: 280px;
+	}
+	.cinematic-moon {
+		width: 120px;
+		height: 120px;
+		top: 16%;
+	}
+}
+
+@media (max-width: 600px) {
+	.hero__title {
+		font-size: clamp(2rem, 8vw, 2.8rem);
+	}
+	.love-meter__glass {
+		padding: var(--space-sm) var(--space-md);
+	}
+	.cinematic-moon-glow {
+		width: 200px;
+		height: 200px;
+		top: 20%;
+	}
+	.cinematic-moon {
+		width: 90px;
+		height: 90px;
+		top: 22%;
+	}
+}
+
+@media (max-width: 480px) {
+	.popup__glass {
+		padding: var(--space-lg) var(--space-md);
+	}
+	.music-toggle {
+		bottom: var(--space-sm);
+		right: var(--space-sm);
+	}
+	.cinematic-overlay__text {
+		max-width: 24ch;
+	}
+	.cinematic-overlay__text.tamil-text {
+		max-width: 26ch;
+	}
+	.cinematic-moon-glow {
+		width: 160px;
+		height: 160px;
+		top: 22%;
+	}
+	.cinematic-moon {
+		width: 70px;
+		height: 70px;
+		top: 24%;
+	}
+}
+
+@media (max-width: 430px), (max-width: 414px), (max-width: 412px), (max-width: 393px), (max-width: 390px) {
+	.hero {
+		gap: var(--space-xs);
+	}
+	.hero__hint {
+		font-size: 0.62rem;
+	}
+}
+
+@media (max-width: 375px), (max-width: 360px), (max-width: 320px) {
+	.love-meter__glass {
+		width: 100%;
+	}
+	.popup__title {
+		font-size: 1.5rem;
+	}
+	.continue-button,
+	.popup__continue {
+		width: 100%;
+	}
+	.cinematic-overlay__text {
+		font-size: 1.2rem;
+		max-width: 22ch;
+	}
+	.cinematic-overlay__text.tamil-text {
+		font-size: 1.0rem;
+		max-width: 24ch;
+	}
+	.cinematic-moon-glow {
+		width: 120px;
+		height: 120px;
+		top: 24%;
+	}
+	.cinematic-moon {
+		width: 55px;
+		height: 55px;
+		top: 26%;
+	}
+}
+
+/* ==========================================================
+   17. MOBILE RESPONSIVE ENHANCEMENTS (ADDITIVE ONLY)
+   Everything in this section is scoped inside max-width /
+   orientation media queries, so it never touches desktop
+   (>1024px) rendering. It layers on top of section 11 above
+   rather than replacing it: fills gaps (safe-area insets,
+   tablet range, landscape, foldables, dvh viewport units,
+   comfortable touch targets) without altering any existing
+   desktop rule, color, timing, class name or id.
+========================================================== */
+
+/* --- Tablet / small-laptop range (769px–1024px), previously
+   uncovered by any breakpoint. Keeps the same desktop feel,
+   just gives the heart field and moon a little more room to
+   breathe on iPads / Android tablets in portrait. --- */
+@media (max-width: 1024px) {
+	.heart-field {
+		min-height: 52vh;
+		min-height: 52dvh;
+	}
+	.love-meter__glass {
+		width: min(92vw, 420px);
+	}
+}
+
+/* --- Base mobile layer (<=768px): dynamic viewport units,
+   safe-area padding, and touch-target floors. Uses dvh with a
+   vh fallback so iOS/Android browser chrome never clips
+   content; desktop is completely unaffected since this block
+   only applies under 768px. --- */
+@media (max-width: 768px) {
+	body {
+		min-height: 100vh;
+		min-height: 100dvh;
+	}
+
+	.main {
+		padding-top: calc(var(--space-xl) + var(--safe-top));
+		padding-left: calc(var(--space-sm) + var(--safe-left));
+		padding-right: calc(var(--space-sm) + var(--safe-right));
+	}
+
+	.heart-field {
+		min-height: 50vh;
+		min-height: 50dvh;
+	}
+
+	/* Comfortable minimum touch target for every heart, on top
+	   of whatever --heart-size the JS assigned inline (24–46px).
+	   min-width/min-height act as a floor alongside width/height,
+	   so the visual size and float animation stay identical. */
+	.heart {
+		min-width: 34px;
+		min-height: 34px;
+	}
+
+	.music-toggle {
+		bottom: calc(var(--space-md) + var(--safe-bottom));
+		right: calc(var(--space-md) + var(--safe-right));
+	}
+
+	.continue-section {
+		padding-bottom: calc(var(--space-2xl) + var(--safe-bottom));
+		padding-left: calc(var(--space-md) + var(--safe-left));
+		padding-right: calc(var(--space-md) + var(--safe-right));
+	}
+
+	.popup {
+		padding: calc(var(--space-md) + var(--safe-top)) calc(var(--space-md) + var(--safe-right)) calc(var(--space-md) + var(--safe-bottom)) calc(var(--space-md) + var(--safe-left));
+	}
+
+	.cinematic-overlay__text {
+		top: 60%;
+	}
+}
+
+@media (max-width: 600px) {
+	.heart-field {
+		min-height: 46vh;
+		min-height: 46dvh;
+	}
+	.heart {
+		min-width: 32px;
+		min-height: 32px;
+	}
+}
+
+@media (max-width: 480px) {
+	.heart-field {
+		min-height: 42vh;
+		min-height: 42dvh;
+	}
+	.love-meter__glass {
+		width: min(94vw, 420px);
+	}
+	.music-toggle {
+		bottom: calc(var(--space-sm) + var(--safe-bottom));
+		right: calc(var(--space-sm) + var(--safe-right));
+	}
+}
+
+/* --- Very narrow phones (SE / Mini / foldable cover screens)
+   and the shared 375–320 cluster: a touch more breathing room
+   so nothing feels cramped, matching the spirit of the existing
+   375/360/320 rule above without redefining it. --- */
+@media (max-width: 375px) {
+	.heart-field {
+		min-height: 40vh;
+		min-height: 40dvh;
+	}
+	.heart {
+		min-width: 30px;
+		min-height: 30px;
+	}
+	.main {
+		gap: var(--space-md);
+	}
+}
+
+@media (max-width: 320px) {
+	.heart-field {
+		min-height: 38vh;
+		min-height: 38dvh;
+	}
+	.hero__title {
+		font-size: clamp(1.7rem, 9vw, 2.3rem);
+	}
+	.hero__subtitle {
+		max-width: 26ch;
+	}
+}
+
+/* --- Ultra-narrow / foldable cover displays (<=280px). Keeps
+   the luxury layout intact by shrinking only spacing/typography
+   scale, never structure. --- */
+@media (max-width: 280px) {
+	.love-meter__glass {
+		padding: var(--space-xs) var(--space-sm);
+	}
+	.hero__title {
+		font-size: 1.6rem;
+	}
+	.hero__subtitle {
+		font-size: 0.9rem;
+		max-width: 22ch;
+	}
+	.popup__glass {
+		padding: var(--space-md) var(--space-sm);
+	}
+}
+
+/* --- Landscape phones: the hero + love meter + heart field
+   stack tends to run out of vertical room when height is short.
+   Tighten vertical rhythm and shrink the moon/cinematic stage
+   so nothing overlaps or gets clipped, while keeping every
+   element and its relative order identical to desktop. --- */
+@media (max-width: 1024px) and (orientation: landscape) and (max-height: 600px) {
+	.main {
+		padding-top: calc(var(--space-md) + var(--safe-top));
+		padding-bottom: var(--space-md);
+		gap: var(--space-sm);
+	}
+	.hero {
+		gap: var(--space-2xs);
+	}
+	.hero__title {
+		font-size: clamp(1.6rem, 5vw, 2.4rem);
+	}
+	.hero__subtitle {
+		font-size: clamp(0.85rem, 1.8vw, 1.05rem);
+	}
+	.hero__hint {
+		font-size: 0.6rem;
+	}
+	.moon {
+		top: 4%;
+		width: clamp(70px, 9vw, 120px);
+		height: clamp(70px, 9vw, 120px);
+	}
+	.moon-glow {
+		top: 2%;
+		width: min(40vw, 420px);
+		height: min(40vw, 420px);
+	}
+	.heart-field {
+		min-height: 34vh;
+		min-height: 34dvh;
+	}
+	.love-meter__glass {
+		padding: var(--space-xs) var(--space-md);
+	}
+	.cinematic-moon-glow {
+		width: 160px;
+		height: 160px;
+		top: 8%;
+	}
+	.cinematic-moon {
+		width: 80px;
+		height: 80px;
+		top: 10%;
+	}
+	.cinematic-overlay__text {
+		top: 58%;
+		font-size: clamp(0.85rem, 2vw, 1.1rem);
+	}
+	.popup__glass {
+		padding: var(--space-md) var(--space-lg);
+		max-height: 92vh;
+		max-height: 92dvh;
+		overflow-y: auto;
+	}
+	.music-toggle {
+		bottom: calc(var(--space-sm) + var(--safe-bottom));
+		width: 42px;
+		height: 42px;
+	}
+	.continue-section {
+		padding-bottom: calc(var(--space-md) + var(--safe-bottom));
+	}
+}
+
+/* --- Foldable / very short landscape (cover screens, small
+   foldables opened flat). Extra compression, same structure. --- */
+@media (max-width: 1024px) and (orientation: landscape) and (max-height: 400px) {
+	.heart-field {
+		min-height: 28vh;
+		min-height: 28dvh;
+	}
+	.moon {
+		width: clamp(55px, 7vw, 90px);
+		height: clamp(55px, 7vw, 90px);
+	}
+	.hero__title {
+		font-size: clamp(1.3rem, 4.5vw, 1.9rem);
+	}
+	.cinematic-moon {
+		width: 60px;
+		height: 60px;
+	}
+	.cinematic-moon-glow {
+		width: 120px;
+		height: 120px;
+	}
+}
+
+/* --- Foldables & large-format phones opened flat (e.g. ~600–
+   717px inner-display widths) sit between the 600px and 768px
+   rules; this keeps the heart field from feeling sparse. --- */
+@media (min-width: 601px) and (max-width: 720px) {
+	.heart-field {
+		min-height: 48vh;
+		min-height: 48dvh;
+	}
+	.love-meter__glass {
+		width: min(70vw, 420px);
+	}
+}
+
+/* ==========================================================
+   13. ACCESSIBILITY — REDUCED MOTION
+========================================================== */
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.001ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.001ms !important;
+		scroll-behavior: auto !important;
+	}
+	.heart {
+		animation: none;
+	}
+	.love-meter__fill::after {
+		display: none;
+	}
+	.love-meter__fill.is-shining::before {
+		display: none;
+	}
+	.heart.is-dissolving {
+		transition: opacity 0.001ms linear !important;
+	}
+	.cinematic-overlay,
+	.cinematic-overlay__text {
+		transition: opacity 0.001ms linear !important;
+	}
+	.cinematic-moon-glow,
+	.cinematic-moon {
+		transition: opacity 0.001ms linear !important;
+	}
+}
+
+/* ==========================================================
+   14. UTILITIES
+========================================================== */
+.visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	white-space: nowrap;
+}
