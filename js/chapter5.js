@@ -1284,20 +1284,82 @@
 		});
 	}
 
+	/* --- unlockAudioElement / unlockAllAudioForMobile ------------------
+	   Mobile browsers (iOS Safari, Chrome/Android, Samsung Internet) will
+	   only let an <audio> element start playing programmatically if
+	   play() has already run at least once inside the call stack of a
+	   genuine user gesture (tap/click/keydown). Several of this chapter's
+	   sound layers — heartbeatSound, pianoNoteSound, magicSparkleSound,
+	   finalMagicSound — are first triggered from deep inside the async
+	   collectHeart() sequence, well after any setTimeout/await delay, so
+	   on strict mobile browsers that later play() call can be silently
+	   rejected even though it looks fine on desktop.
+
+	   The fix is the standard "audio unlock" pattern: on the very first
+	   tap anywhere on the page, synchronously call play() on every sound
+	   element once (immediately pausing and rewinding it again). That one
+	   real user-gesture play() "arms" each element so every later
+	   asynchronous play() call — no matter how far from the original tap —
+	   is allowed to actually produce sound. This changes nothing about
+	   *when* sounds play or how loud they are; it only makes sure they
+	   are allowed to play at all on mobile. --- */
+	function unlockAudioElement(audioElement) {
+		if (!audioElement) return;
+		try {
+			const playPromise = audioElement.play();
+			if (playPromise && typeof playPromise.then === 'function') {
+				playPromise
+					.then(() => {
+						audioElement.pause();
+						audioElement.currentTime = 0;
+					})
+					.catch(() => {
+						/* Priming play() itself was rejected — harmless; a later
+						   safePlay() will simply try again and may still fail on
+						   this element, but it won't break anything else. */
+					});
+			} else {
+				audioElement.pause();
+				audioElement.currentTime = 0;
+			}
+		} catch (e) {
+			/* Never let audio unlocking crash the interaction */
+		}
+	}
+
+	function unlockAllAudioForMobile() {
+		[
+			dom.heartbeatSound,
+			dom.pianoNoteSound,
+			dom.magicSparkleSound,
+			dom.finalMagicSound,
+			dom.heartCollectSound
+		].forEach(unlockAudioElement);
+	}
+
 	function initMusic() {
 		if (!dom.ambientMusic) return;
 		dom.ambientMusic.volume = 0;
 
 		const startMusic = () => {
 			if (state.musicPlaying) return;
+			/* Prime every other sound layer in the same gesture that starts
+			   the ambient track, so cinematic sounds triggered later (after
+			   awaits/timeouts) are still allowed to play on mobile. */
+			unlockAllAudioForMobile();
 			safePlay(dom.ambientMusic);
 			fadeAudio(dom.ambientMusic, 0.35, CONFIG.MUSIC_FADE);
 			setState({ musicPlaying: true });
 			updateMusicToggleUI();
 			document.removeEventListener('pointerdown', startMusic);
+			document.removeEventListener('touchend', startMusic);
 		};
 
 		document.addEventListener('pointerdown', startMusic, { once: true });
+		/* touchend fallback: some Android/iOS browser + in-app webview
+		   combinations only recognize a gesture as "real" for autoplay
+		   purposes on touchend rather than touchstart/pointerdown. */
+		document.addEventListener('touchend', startMusic, { once: true, passive: true });
 
 		if (dom.musicToggle) {
 			dom.musicToggle.addEventListener('click', toggleMusic);
@@ -1310,6 +1372,7 @@
 			fadeAudio(dom.ambientMusic, 0, CONFIG.MUSIC_FADE).then(() => dom.ambientMusic.pause());
 			setState({ musicPlaying: false });
 		} else {
+			unlockAllAudioForMobile();
 			safePlay(dom.ambientMusic);
 			fadeAudio(dom.ambientMusic, 0.35, CONFIG.MUSIC_FADE);
 			setState({ musicPlaying: true });
@@ -1531,8 +1594,17 @@
 	function handleVisibilityChange() {
 		if (document.hidden) {
 			stopAnimationLoop();
-		} else if (!state.reducedMotion) {
-			startAnimationLoop();
+		} else {
+			if (!state.reducedMotion) startAnimationLoop();
+
+			/* Mobile OSes frequently pause background <audio> the moment a
+			   tab/app is backgrounded (iOS Safari, Chrome/Android battery
+			   saving, etc). Resume the ambient track if it was supposed to
+			   still be playing when the page regains focus, so returning to
+			   the tab doesn't leave the BGM silently stopped. */
+			if (state.musicPlaying && dom.ambientMusic && dom.ambientMusic.paused) {
+				safePlay(dom.ambientMusic);
+			}
 		}
 	}
 
