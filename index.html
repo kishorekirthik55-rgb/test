@@ -57,7 +57,7 @@
 		<div class="moon-glow" id="moonGlow"></div>
 		<div class="moon" id="moon">
 			<img
-				src="m.png"
+				src="images/m.png"
 				alt=""
 				class="moon__image"
 				draggable="false"
@@ -97,6 +97,10 @@
 
 	<!-- ================================================
 	     MUSIC TOGGLE
+	     Premium floating glass button. A single SVG <path>
+	     morphs smoothly between the play and pause shapes
+	     (driven by chapter5.js) — no icon swapping, no
+	     opacity crossfade, no duplicate SVGs.
 	================================================ -->
 	<button
 		type="button"
@@ -105,11 +109,8 @@
 		aria-pressed="false"
 		aria-label="Play ambient music"
 	>
-		<svg class="music-toggle__icon music-toggle__icon--play" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-			<path d="M8 5v14l11-7z"></path>
-		</svg>
-		<svg class="music-toggle__icon music-toggle__icon--pause" viewBox="0 0 24 24" aria-hidden="true" focusable="false" hidden>
-			<path d="M6 5h4v14H6zM14 5h4v14h-4z"></path>
+		<svg class="music-toggle__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+			<path id="musicIconPath" d="M8,5 L18,12 L18,12 L8,12 Z M8,12 L18,12 L18,12 L8,19 Z"></path>
 		</svg>
 	</button>
 
@@ -164,7 +165,7 @@
 	>
 		<div class="cinematic-moon-glow"></div>
 		<div class="cinematic-moon">
-			<img src="m.png" class="cinematic-moon-white" alt="">
+			<img src="images/m.png" class="cinematic-moon-white" alt="">
 			<img src="images/pinkheart.png" class="cinematic-moon-pink" alt="">
 		</div>
 		<div class="cinematic-overlay__dust" id="cinematicDust" aria-hidden="true"></div>
