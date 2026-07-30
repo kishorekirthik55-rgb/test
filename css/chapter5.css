@@ -738,11 +738,11 @@ body {
 	font-style: italic;
 	font-weight: 500;
 	/* Smaller text - works well for both English and Tamil */
-	font-size: clamp(0.95rem, 1.8vw, 1.55rem);
-	line-height: 1.8;
+	font-size: clamp(1.15rem, 2.2vw, 1.85rem);
+	line-height: 1.75;
 	letter-spacing: 0.02em;
 	/* Wider text box so Tamil wraps less */
-	max-width: 38ch;
+	max-width: 34ch;
 	text-align: center;
 	color: var(--color-moon-white);
 	text-shadow:
@@ -1056,12 +1056,19 @@ body.scene--finale .moon-glow {
 }
 
 /* ==========================================================
-   MUSIC TOGGLE
+   MUSIC TOGGLE — premium floating glass control
+   Single SVG icon that morphs between play/pause (see
+   #musicIconPath + morphMusicIcon() in chapter5.js). Desktop
+   geometry/position is unchanged from the original button;
+   this section only adds richer glass/glow/press styling and
+   full safe-area awareness so the control never collides with
+   a notch, camera cutout, gesture bar, or browser chrome on
+   any phone, tablet, or foldable.
 ========================================================== */
 .music-toggle {
 	position: fixed;
-	bottom: var(--space-md);
-	right: var(--space-md);
+	bottom: calc(var(--space-md) + var(--safe-bottom));
+	right: calc(var(--space-md) + var(--safe-right));
 	z-index: 30;
 	width: 48px;
 	height: 48px;
@@ -1069,23 +1076,58 @@ body.scene--finale .moon-glow {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	background: var(--glass-fill);
-	border: 1px solid var(--glass-border);
+	background:
+		linear-gradient(145deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0) 55%),
+		var(--glass-fill-strong);
+	border: 1px solid var(--border-champagne);
 	backdrop-filter: blur(var(--glass-blur));
 	-webkit-backdrop-filter: blur(var(--glass-blur));
-	box-shadow: var(--shadow-soft), var(--shadow-inset);
-	transition: transform var(--speed-medium) var(--ease-luxury), box-shadow var(--speed-medium) var(--ease-luxury);
+	box-shadow: var(--shadow-soft), var(--shadow-inset), 0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+	transform: translateZ(0) scale(1);
+	will-change: transform, box-shadow;
+	transition:
+		transform var(--speed-fast) var(--ease-luxury),
+		box-shadow var(--speed-fast) var(--ease-luxury),
+		border-color var(--speed-fast) var(--ease-luxury);
 }
 
 .music-toggle:hover {
-	transform: translateY(-2px);
+	transform: translateZ(0) scale(1.06);
 	box-shadow: var(--shadow-glow-gold), var(--shadow-inset);
+	border-color: var(--color-champagne-bright);
 }
 
+.music-toggle:active {
+	transform: translateZ(0) scale(0.9);
+	transition-duration: var(--speed-instant);
+}
+
+.music-toggle[aria-pressed="true"] {
+	box-shadow: var(--shadow-soft), var(--shadow-glow-pink), var(--shadow-inset);
+	border-color: var(--color-champagne-bright);
+}
+
+/* Single morphing icon — no swapping, no opacity toggling.
+   The <path> 'd' attribute is tweened in JS between a pause
+   and a play shape built from matching point structures. */
 .music-toggle__icon {
 	width: 18px;
 	height: 18px;
+	overflow: visible;
+	pointer-events: none;
+}
+
+.music-toggle__icon path {
 	fill: var(--color-champagne-bright);
+	transition: fill var(--speed-fast) var(--ease-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.music-toggle,
+	.music-toggle:hover,
+	.music-toggle:active {
+		transition-duration: 0.001ms !important;
+	}
 }
 
 /* ==========================================================
@@ -1145,8 +1187,8 @@ body.scene--warm .sky {
 		padding: var(--space-lg) var(--space-md);
 	}
 	.music-toggle {
-		bottom: var(--space-sm);
-		right: var(--space-sm);
+		bottom: calc(var(--space-sm) + var(--safe-bottom));
+		right: calc(var(--space-sm) + var(--safe-right));
 	}
 	.cinematic-overlay__text {
 		max-width: 24ch;
@@ -1265,6 +1307,8 @@ body.scene--warm .sky {
 	.music-toggle {
 		bottom: calc(var(--space-md) + var(--safe-bottom));
 		right: calc(var(--space-md) + var(--safe-right));
+		width: 50px;
+		height: 50px;
 	}
 
 	.continue-section {
@@ -1304,6 +1348,12 @@ body.scene--warm .sky {
 	.music-toggle {
 		bottom: calc(var(--space-sm) + var(--safe-bottom));
 		right: calc(var(--space-sm) + var(--safe-right));
+		width: 46px;
+		height: 46px;
+	}
+	.music-toggle__icon {
+		width: 16px;
+		height: 16px;
 	}
 }
 
@@ -1323,6 +1373,10 @@ body.scene--warm .sky {
 	.main {
 		gap: var(--space-md);
 	}
+	.music-toggle {
+		width: 44px;
+		height: 44px;
+	}
 }
 
 @media (max-width: 320px) {
@@ -1335,6 +1389,12 @@ body.scene--warm .sky {
 	}
 	.hero__subtitle {
 		max-width: 26ch;
+	}
+	.music-toggle {
+		bottom: calc(var(--space-xs) + var(--safe-bottom));
+		right: calc(var(--space-xs) + var(--safe-right));
+		width: 42px;
+		height: 42px;
 	}
 }
 
@@ -1354,6 +1414,14 @@ body.scene--warm .sky {
 	}
 	.popup__glass {
 		padding: var(--space-md) var(--space-sm);
+	}
+	.music-toggle {
+		width: 40px;
+		height: 40px;
+	}
+	.music-toggle__icon {
+		width: 14px;
+		height: 14px;
 	}
 }
 
@@ -1449,6 +1517,10 @@ body.scene--warm .sky {
 		width: 120px;
 		height: 120px;
 	}
+	.music-toggle {
+		width: 38px;
+		height: 38px;
+	}
 }
 
 /* --- Foldables & large-format phones opened flat (e.g. ~600–
@@ -1461,6 +1533,20 @@ body.scene--warm .sky {
 	}
 	.love-meter__glass {
 		width: min(70vw, 420px);
+	}
+}
+
+/* --- Tablets / iPads / large foldables unfolded (769–1024px):
+   give the floating button a touch more presence to match the
+   larger canvas without changing desktop's 48px baseline. --- */
+@media (min-width: 769px) and (max-width: 1024px) {
+	.music-toggle {
+		width: 52px;
+		height: 52px;
+	}
+	.music-toggle__icon {
+		width: 20px;
+		height: 20px;
 	}
 }
 
