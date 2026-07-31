@@ -79,6 +79,10 @@
 	--safe-bottom: env(safe-area-inset-bottom, 0px);
 	--safe-left: env(safe-area-inset-left, 0px);
 	--safe-right: env(safe-area-inset-right, 0px);
+
+	/* --- Moon parallax offset (driven by JS; safe no-op defaults) --- */
+	--moon-parallax-x: 0px;
+	--moon-parallax-y: 0px;
 }
 
 /* ==========================================================
@@ -171,13 +175,13 @@ body {
 ========================================================== */
 .moon-glow {
 	position: absolute;
-	top: 6%;
+	top: 4.5%;
 	left: 50%;
-	width: min(70vw, 900px);
-	height: min(70vw, 900px);
-	transform: translateX(-50%);
-	background: radial-gradient(circle, rgba(251, 246, 234, calc(0.22 * var(--glow-intensity))) 0%, rgba(233, 211, 163, calc(0.08 * var(--glow-intensity))) 35%, transparent 70%);
-	filter: blur(30px);
+	width: min(55vw, 650px);
+	height: min(55vw, 650px);
+	transform: translate3d(calc(-50% + var(--moon-parallax-x)), var(--moon-parallax-y), 0);
+	background: radial-gradient(circle, rgba(251, 246, 234, 0.10) 0%, rgba(233, 211, 163, 0.035) 32%, transparent 65%);
+	filter: blur(18px);
 	animation: moonGlowBreathe 10s var(--ease-breathe) infinite;
 	will-change: opacity, transform;
 	transition: opacity 1.2s var(--ease-luxury);
@@ -185,11 +189,11 @@ body {
 
 .moon {
 	position: absolute;
-	top: 9%;
+	top: 7.5%;
 	left: 50%;
 	width: clamp(120px, 14vw, 190px);
 	height: clamp(120px, 14vw, 190px);
-	transform: translateX(-50%);
+	transform: translate3d(calc(-50% + var(--moon-parallax-x)), var(--moon-parallax-y), 0);
 	animation: moonBreathe 9s ease-in-out infinite;
 	will-change: transform, opacity;
 	display: flex;
@@ -205,9 +209,9 @@ body {
 	user-select: none;
 	pointer-events: none;
 	filter:
-		drop-shadow(0 0 25px rgba(255,255,255,.35))
-		drop-shadow(0 0 60px rgba(233,211,163,.30))
-		drop-shadow(0 0 110px rgba(233,211,163,.18));
+		drop-shadow(0 0 8px rgba(255,255,255,.18))
+		drop-shadow(0 0 18px rgba(233,211,163,.12))
+		drop-shadow(0 0 35px rgba(233,211,163,.06));
 	transition: filter 1.2s var(--ease-luxury);
 }
 
@@ -224,13 +228,13 @@ body {
 }
 
 @keyframes moonBreathe {
-	0%, 100% { transform: translateX(-50%) scale(1); }
-	50% { transform: translateX(-50%) scale(1.035); }
+	0%, 100% { transform: translate3d(calc(-50% + var(--moon-parallax-x)), var(--moon-parallax-y), 0) scale(1); }
+	50% { transform: translate3d(calc(-50% + var(--moon-parallax-x)), var(--moon-parallax-y), 0) scale(1.035); }
 }
 
 @keyframes moonGlowBreathe {
-	0%, 100% { opacity: 0.85; transform: translateX(-50%) scale(1); }
-	50% { opacity: 1; transform: translateX(-50%) scale(1.06); }
+	0%, 100% { opacity: 0.85; transform: translate3d(calc(-50% + var(--moon-parallax-x)), var(--moon-parallax-y), 0) scale(1); }
+	50% { opacity: 1; transform: translate3d(calc(-50% + var(--moon-parallax-x)), var(--moon-parallax-y), 0) scale(1.06); }
 }
 
 @keyframes sparklePulse {
@@ -339,7 +343,7 @@ body {
 .fog--back {
 	top: 10%;
 	background: linear-gradient(90deg, transparent, rgba(19, 26, 61, 0.35), transparent);
-	opacity: 0.5;
+	opacity: 0.18;
 	animation: fogDriftSlow 60s linear infinite;
 }
 
@@ -400,7 +404,7 @@ body {
 	flex-direction: column;
 	align-items: center;
 	gap: var(--space-sm);
-	max-width: 640px;
+	max-width: 608px;
 	opacity: 0;
 }
 
@@ -420,6 +424,7 @@ body {
 	color: var(--color-moon-white);
 	text-shadow: 0 0 30px rgba(251, 246, 234, 0.35), 0 0 60px rgba(233, 211, 163, 0.2);
 	line-height: 1.1;
+	margin-bottom: calc(-1 * clamp(0.15rem, 0.6vw, 0.35rem));
 }
 
 .hero__subtitle {
@@ -1142,411 +1147,253 @@ body.scene--warm .sky {
 }
 
 /* ==========================================================
-   11. RESPONSIVE
+   17. MOBILE FLUID SCALING SYSTEM
+   ------------------------------------------------------------
+   Goal: the mobile hero should look like the SAME composition
+   as desktop, just photographed smaller — not a re-laid-out
+   page. Every rule below computes size/spacing as a function
+   of viewport width alone (clamp()/min()/vw), so there is no
+   point at which one piece of the hero (moon, label, title,
+   subtitle, hint, love meter) jumps independently of the rest.
+   A single continuous curve replaces the old ladder of
+   disconnected breakpoints, which is what let elements drift
+   out of proportion with one another on some screen sizes.
 ========================================================== */
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
+
+	/* --- Whole page shell: the composition scales down as one
+	   unit as the viewport narrows. Padding/gaps use the same
+	   vw-driven curve as the elements inside them so the outer
+	   "frame" around the hero shrinks in lockstep with its
+	   contents instead of leaving mismatched empty margins. --- */
 	.main {
-		padding: var(--space-xl) var(--space-sm) var(--space-lg);
-		gap: var(--space-lg);
+		padding-top: calc(clamp(0.9rem, 7vw, 2.1rem) + var(--safe-top));
+		padding-bottom: clamp(1.5rem, 6vw, 3rem);
+		padding-left: calc(clamp(0.85rem, 4vw, 1.3rem) + var(--safe-left));
+		padding-right: calc(clamp(0.85rem, 4vw, 1.3rem) + var(--safe-right));
+		gap: clamp(1.1rem, 5vw, 2rem);
 	}
-	.heart-field {
-		min-height: 50vh;
-	}
-	.cinematic-moon-glow {
-		width: 280px;
-		height: 280px;
-	}
-	.cinematic-moon {
-		width: 120px;
-		height: 120px;
-		top: 16%;
-	}
-}
 
-@media (max-width: 600px) {
-	.hero__title {
-		font-size: clamp(2rem, 8vw, 2.8rem);
+	/* --- Moon: same relative size and position as desktop,
+	   simply riding a lower vw ceiling. No stepped min-width
+	   floor, so it keeps shrinking smoothly all the way down
+	   to the smallest phones instead of flattening out. --- */
+	.moon-glow {
+		top: 4%;
+		width: min(58vw, 420px);
+		height: min(58vw, 420px);
 	}
-	.love-meter__glass {
-		padding: var(--space-sm) var(--space-md);
+	.moon {
+		top: 7%;
+		width: clamp(78px, 20vw, 190px);
+		height: clamp(78px, 20vw, 190px);
 	}
-	.cinematic-moon-glow {
-		width: 200px;
-		height: 200px;
-		top: 20%;
-	}
-	.cinematic-moon {
-		width: 90px;
-		height: 90px;
-		top: 22%;
-	}
-}
 
-@media (max-width: 480px) {
-	.popup__glass {
-		padding: var(--space-lg) var(--space-md);
-	}
-	.music-toggle {
-		bottom: calc(var(--space-sm) + var(--safe-bottom));
-		right: calc(var(--space-sm) + var(--safe-right));
-	}
-	.cinematic-overlay__text {
-		max-width: 24ch;
-	}
-	.cinematic-overlay__text.tamil-text {
-		max-width: 26ch;
-	}
-	.cinematic-moon-glow {
-		width: 160px;
-		height: 160px;
-		top: 22%;
-	}
-	.cinematic-moon {
-		width: 70px;
-		height: 70px;
-		top: 24%;
-	}
-}
-
-@media (max-width: 430px), (max-width: 414px), (max-width: 412px), (max-width: 393px), (max-width: 390px) {
+	/* --- Hero block: treated as one composition. The internal
+	   rhythm (label -> title -> subtitle -> hint) is preserved
+	   because every gap and font-size below is expressed as a
+	   vw-scaled fraction of its desktop value, not a fixed
+	   mobile-only number. --- */
 	.hero {
-		gap: var(--space-xs);
+		gap: clamp(0.35rem, 1.7vw, 0.9rem);
+		margin-bottom: clamp(0.25rem, 1.4vw, 1rem);
+		max-width: 92vw;
+	}
+	.hero__label {
+		font-size: clamp(0.56rem, 1.9vw, 0.75rem);
+	}
+	.hero__title {
+		font-size: clamp(1.7rem, 8.6vw, 4.2rem);
+		margin-bottom: calc(-1 * clamp(0.1rem, 0.7vw, 0.35rem));
+	}
+	.hero__subtitle {
+		font-size: clamp(0.82rem, 3.6vw, 1.35rem);
+		max-width: 30ch;
 	}
 	.hero__hint {
-		font-size: 0.62rem;
+		font-size: clamp(0.56rem, 1.7vw, 0.7rem);
+		margin-top: clamp(0.15rem, 0.6vw, 0.375rem);
 	}
-}
 
-@media (max-width: 375px), (max-width: 360px), (max-width: 320px) {
-	.love-meter__glass {
-		width: 100%;
-	}
-	.popup__title {
-		font-size: 1.5rem;
-	}
-	.continue-button,
-	.popup__continue {
-		width: 100%;
-	}
-	.cinematic-overlay__text {
-		font-size: 1.2rem;
-		max-width: 22ch;
-	}
-	.cinematic-overlay__text.tamil-text {
-		font-size: 1.0rem;
-		max-width: 24ch;
-	}
-	.cinematic-moon-glow {
-		width: 120px;
-		height: 120px;
-		top: 24%;
-	}
-	.cinematic-moon {
-		width: 55px;
-		height: 55px;
-		top: 26%;
-	}
-}
-
-/* ==========================================================
-   17. MOBILE RESPONSIVE ENHANCEMENTS (ADDITIVE ONLY)
-   Everything in this section is scoped inside max-width /
-   orientation media queries, so it never touches desktop
-   (>1024px) rendering. It layers on top of section 11 above
-   rather than replacing it: fills gaps (safe-area insets,
-   tablet range, landscape, foldables, dvh viewport units,
-   comfortable touch targets) without altering any existing
-   desktop rule, color, timing, class name or id.
-========================================================== */
-
-/* --- Tablet / small-laptop range (769px–1024px), previously
-   uncovered by any breakpoint. Keeps the same desktop feel,
-   just gives the heart field and moon a little more room to
-   breathe on iPads / Android tablets in portrait. --- */
-@media (max-width: 1024px) {
-	.heart-field {
-		min-height: 52vh;
-		min-height: 52dvh;
-	}
+	/* --- Love Meter: keeps the same distance from the hero and
+	   the same relative width on every phone, so it never drifts
+	   lower on taller screens or crowds the hero on shorter ones. --- */
 	.love-meter__glass {
 		width: min(92vw, 420px);
+		padding: clamp(0.6rem, 2.6vw, 1.25rem) clamp(0.9rem, 4.2vw, 2rem);
+		gap: clamp(0.55rem, 2vw, 1.25rem);
 	}
-}
-
-/* --- Base mobile layer (<=768px): dynamic viewport units,
-   safe-area padding, and touch-target floors. Uses dvh with a
-   vh fallback so iOS/Android browser chrome never clips
-   content; desktop is completely unaffected since this block
-   only applies under 768px. --- */
-@media (max-width: 768px) {
-	body {
-		min-height: 100vh;
-		min-height: 100dvh;
+	.love-meter__title {
+		font-size: clamp(0.6rem, 1.7vw, 0.72rem);
+	}
+	.love-meter__count {
+		font-size: clamp(0.72rem, 2.4vw, 0.85rem);
 	}
 
-	.main {
-		padding-top: calc(var(--space-xl) + var(--safe-top));
-		padding-left: calc(var(--space-sm) + var(--safe-left));
-		padding-right: calc(var(--space-sm) + var(--safe-right));
-	}
-
+	/* --- Heart field: begins immediately below the Love Meter,
+	   exactly like desktop, and its height scales with viewport
+	   height (not a fixed vh ladder) so there is never a large
+	   dead zone above or below the hearts. --- */
 	.heart-field {
-		min-height: 50vh;
-		min-height: 50dvh;
+		min-height: clamp(260px, 50dvh, 55vh);
 	}
 
-	/* Comfortable minimum touch target for every heart, on top
-	   of whatever --heart-size the JS assigned inline (24–46px).
-	   min-width/min-height act as a floor alongside width/height,
-	   so the visual size and float animation stay identical. */
+	/* Heart size continues to come from the per-heart inline
+	   --heart-size custom property set in JS (24–46px, unchanged);
+	   this only nudges the floor down slightly so hearts on very
+	   small phones stay proportionate to the smaller moon/hero
+	   instead of looking oversized next to them. */
 	.heart {
-		min-width: 34px;
-		min-height: 34px;
+		min-width: clamp(20px, 6.5vw, 34px);
+		min-height: clamp(20px, 6.5vw, 34px);
 	}
 
-	.music-toggle {
-		bottom: calc(var(--space-md) + var(--safe-bottom));
-		right: calc(var(--space-md) + var(--safe-right));
-		width: 50px;
-		height: 50px;
+	/* --- Popup + continue button: scale with the same fluid
+	   curve rather than a fixed mobile padding value. --- */
+	.popup {
+		padding: calc(clamp(0.85rem, 4vw, 1.3rem) + var(--safe-top)) calc(clamp(0.85rem, 4vw, 1.3rem) + var(--safe-right)) calc(clamp(0.85rem, 4vw, 1.3rem) + var(--safe-bottom)) calc(clamp(0.85rem, 4vw, 1.3rem) + var(--safe-left));
+	}
+	.popup__glass {
+		padding: clamp(1.5rem, 6vw, 3.5rem) clamp(1rem, 4.5vw, 3.5rem);
+	}
+	.popup__title {
+		font-size: clamp(1.4rem, 6.5vw, 2.4rem);
 	}
 
 	.continue-section {
-		padding-bottom: calc(var(--space-2xl) + var(--safe-bottom));
-		padding-left: calc(var(--space-md) + var(--safe-left));
-		padding-right: calc(var(--space-md) + var(--safe-right));
+		padding-bottom: calc(clamp(1.5rem, 7vw, 3rem) + var(--safe-bottom));
+		padding-left: calc(clamp(0.85rem, 4vw, 1.3rem) + var(--safe-left));
+		padding-right: calc(clamp(0.85rem, 4vw, 1.3rem) + var(--safe-right));
 	}
 
-	.popup {
-		padding: calc(var(--space-md) + var(--safe-top)) calc(var(--space-md) + var(--safe-right)) calc(var(--space-md) + var(--safe-bottom)) calc(var(--space-md) + var(--safe-left));
+	/* --- Cinematic memory stage: same fluid treatment so the
+	   in-sequence moon/text stay in proportion with the hero
+	   moon they transition from. --- */
+	.cinematic-moon-glow {
+		width: clamp(140px, 34vw, 420px);
+		height: clamp(140px, 34vw, 420px);
+		top: 14%;
 	}
-
+	.cinematic-moon {
+		width: clamp(64px, 15vw, 180px);
+		height: clamp(64px, 15vw, 180px);
+		top: 13%;
+	}
 	.cinematic-overlay__text {
-		top: 60%;
+		top: 62%;
+		max-width: clamp(20ch, 70vw, 34ch);
+		font-size: clamp(0.95rem, 3.6vw, 1.85rem);
 	}
-}
+	.cinematic-overlay__text.tamil-text {
+		max-width: clamp(22ch, 76vw, 40ch);
+		font-size: clamp(0.8rem, 2.9vw, 1.35rem);
+	}
 
-@media (max-width: 600px) {
-	.heart-field {
-		min-height: 46vh;
-		min-height: 46dvh;
-	}
-	.heart {
-		min-width: 32px;
-		min-height: 32px;
-	}
-}
-
-@media (max-width: 480px) {
-	.heart-field {
-		min-height: 42vh;
-		min-height: 42dvh;
-	}
-	.love-meter__glass {
-		width: min(94vw, 420px);
-	}
+	/* --- Floating music toggle: kept out of the hero
+	   composition entirely (it is a fixed UI chrome control,
+	   not part of the scaled scene), sized with the same fluid
+	   curve and respecting safe areas. --- */
 	.music-toggle {
-		bottom: calc(var(--space-sm) + var(--safe-bottom));
-		right: calc(var(--space-sm) + var(--safe-right));
-		width: 46px;
-		height: 46px;
+		bottom: calc(clamp(0.75rem, 3.5vw, 1.25rem) + var(--safe-bottom));
+		right: calc(clamp(0.75rem, 3.5vw, 1.25rem) + var(--safe-right));
+		width: clamp(40px, 11vw, 52px);
+		height: clamp(40px, 11vw, 52px);
 	}
 	.music-toggle__icon {
-		width: 16px;
-		height: 16px;
+		width: clamp(14px, 4vw, 20px);
+		height: clamp(14px, 4vw, 20px);
+	}
+
+	.loading-overlay__inner {
+		padding: 0 calc(clamp(0.75rem, 4vw, 1.25rem) + var(--safe-left)) 0 calc(clamp(0.75rem, 4vw, 1.25rem) + var(--safe-right));
 	}
 }
 
-/* --- Very narrow phones (SE / Mini / foldable cover screens)
-   and the shared 375–320 cluster: a touch more breathing room
-   so nothing feels cramped, matching the spirit of the existing
-   375/360/320 rule above without redefining it. --- */
-@media (max-width: 375px) {
-	.heart-field {
-		min-height: 40vh;
-		min-height: 40dvh;
-	}
-	.heart {
-		min-width: 30px;
-		min-height: 30px;
-	}
-	.main {
-		gap: var(--space-md);
-	}
-	.music-toggle {
-		width: 44px;
-		height: 44px;
-	}
-}
-
-@media (max-width: 320px) {
-	.heart-field {
-		min-height: 38vh;
-		min-height: 38dvh;
-	}
-	.hero__title {
-		font-size: clamp(1.7rem, 9vw, 2.3rem);
-	}
-	.hero__subtitle {
-		max-width: 26ch;
-	}
-	.music-toggle {
-		bottom: calc(var(--space-xs) + var(--safe-bottom));
-		right: calc(var(--space-xs) + var(--safe-right));
-		width: 42px;
-		height: 42px;
-	}
-}
-
-/* --- Ultra-narrow / foldable cover displays (<=280px). Keeps
-   the luxury layout intact by shrinking only spacing/typography
-   scale, never structure. --- */
-@media (max-width: 280px) {
-	.love-meter__glass {
-		padding: var(--space-xs) var(--space-sm);
-	}
-	.hero__title {
-		font-size: 1.6rem;
-	}
-	.hero__subtitle {
-		font-size: 0.9rem;
-		max-width: 22ch;
-	}
-	.popup__glass {
-		padding: var(--space-md) var(--space-sm);
-	}
-	.music-toggle {
-		width: 40px;
-		height: 40px;
-	}
-	.music-toggle__icon {
-		width: 14px;
-		height: 14px;
-	}
-}
-
-/* --- Landscape phones: the hero + love meter + heart field
-   stack tends to run out of vertical room when height is short.
-   Tighten vertical rhythm and shrink the moon/cinematic stage
-   so nothing overlaps or gets clipped, while keeping every
-   element and its relative order identical to desktop. --- */
+/* --- Landscape phones / short viewports: the same fluid rules
+   above already shrink everything with vw; here we additionally
+   let height-based clamps react to the shorter viewport so the
+   hero + love meter + heart field stack never overlaps or gets
+   clipped, while every element keeps scaling together rather
+   than being repositioned individually. --- */
 @media (max-width: 1024px) and (orientation: landscape) and (max-height: 600px) {
 	.main {
-		padding-top: calc(var(--space-md) + var(--safe-top));
-		padding-bottom: var(--space-md);
-		gap: var(--space-sm);
-	}
-	.hero {
-		gap: var(--space-2xs);
-	}
-	.hero__title {
-		font-size: clamp(1.6rem, 5vw, 2.4rem);
-	}
-	.hero__subtitle {
-		font-size: clamp(0.85rem, 1.8vw, 1.05rem);
-	}
-	.hero__hint {
-		font-size: 0.6rem;
-	}
-	.moon {
-		top: 4%;
-		width: clamp(70px, 9vw, 120px);
-		height: clamp(70px, 9vw, 120px);
+		padding-top: calc(clamp(0.6rem, 4vh, 1.2rem) + var(--safe-top));
+		padding-bottom: clamp(0.6rem, 4vh, 1.2rem);
+		gap: clamp(0.6rem, 3vh, 1.25rem);
 	}
 	.moon-glow {
 		top: 2%;
-		width: min(40vw, 420px);
-		height: min(40vw, 420px);
+		width: min(30vh, 420px);
+		height: min(30vh, 420px);
+	}
+	.moon {
+		top: 3%;
+		width: clamp(60px, 13vh, 190px);
+		height: clamp(60px, 13vh, 190px);
+	}
+	.hero {
+		gap: clamp(0.2rem, 1vh, 0.6rem);
+	}
+	.hero__title {
+		font-size: clamp(1.4rem, 6vh, 3rem);
+	}
+	.hero__subtitle {
+		font-size: clamp(0.75rem, 2.6vh, 1.1rem);
 	}
 	.heart-field {
-		min-height: 34vh;
-		min-height: 34dvh;
+		min-height: clamp(150px, 32dvh, 55vh);
 	}
 	.love-meter__glass {
-		padding: var(--space-xs) var(--space-md);
+		padding: clamp(0.45rem, 1.8vh, 1.25rem) clamp(0.9rem, 3vh, 2rem);
+		width: min(60vw, 420px);
 	}
 	.cinematic-moon-glow {
-		width: 160px;
-		height: 160px;
-		top: 8%;
+		width: clamp(100px, 22vh, 420px);
+		height: clamp(100px, 22vh, 420px);
+		top: 6%;
 	}
 	.cinematic-moon {
-		width: 80px;
-		height: 80px;
-		top: 10%;
+		width: clamp(48px, 11vh, 180px);
+		height: clamp(48px, 11vh, 180px);
+		top: 8%;
 	}
 	.cinematic-overlay__text {
 		top: 58%;
-		font-size: clamp(0.85rem, 2vw, 1.1rem);
+		font-size: clamp(0.8rem, 2.6vh, 1.1rem);
 	}
 	.popup__glass {
-		padding: var(--space-md) var(--space-lg);
+		padding: clamp(0.75rem, 3vh, 1.5rem) clamp(1rem, 3vw, 2.5rem);
 		max-height: 92vh;
 		max-height: 92dvh;
 		overflow-y: auto;
 	}
 	.music-toggle {
-		bottom: calc(var(--space-sm) + var(--safe-bottom));
-		width: 42px;
-		height: 42px;
+		bottom: calc(clamp(0.4rem, 2vh, 0.75rem) + var(--safe-bottom));
+		right: calc(clamp(0.4rem, 2vh, 0.75rem) + var(--safe-right));
+		width: clamp(34px, 8vh, 42px);
+		height: clamp(34px, 8vh, 42px);
 	}
 	.continue-section {
-		padding-bottom: calc(var(--space-md) + var(--safe-bottom));
+		padding-bottom: calc(clamp(0.6rem, 3vh, 1.25rem) + var(--safe-bottom));
 	}
 }
 
-/* --- Foldable / very short landscape (cover screens, small
-   foldables opened flat). Extra compression, same structure. --- */
-@media (max-width: 1024px) and (orientation: landscape) and (max-height: 400px) {
-	.heart-field {
-		min-height: 28vh;
-		min-height: 28dvh;
-	}
-	.moon {
-		width: clamp(55px, 7vw, 90px);
-		height: clamp(55px, 7vw, 90px);
-	}
-	.hero__title {
-		font-size: clamp(1.3rem, 4.5vw, 1.9rem);
-	}
-	.cinematic-moon {
-		width: 60px;
-		height: 60px;
-	}
-	.cinematic-moon-glow {
-		width: 120px;
-		height: 120px;
-	}
-	.music-toggle {
-		width: 38px;
-		height: 38px;
-	}
-}
-
-/* --- Foldables & large-format phones opened flat (e.g. ~600–
-   717px inner-display widths) sit between the 600px and 768px
-   rules; this keeps the heart field from feeling sparse. --- */
-@media (min-width: 601px) and (max-width: 720px) {
-	.heart-field {
-		min-height: 48vh;
-		min-height: 48dvh;
-	}
-	.love-meter__glass {
-		width: min(70vw, 420px);
-	}
-}
-
-/* --- Tablets / iPads / large foldables unfolded (769–1024px):
-   give the floating button a touch more presence to match the
-   larger canvas without changing desktop's 48px baseline. --- */
-@media (min-width: 769px) and (max-width: 1024px) {
-	.music-toggle {
-		width: 52px;
-		height: 52px;
-	}
-	.music-toggle__icon {
-		width: 20px;
-		height: 20px;
+/* ==========================================================
+   18. TOUCH-DEVICE SAFETY NET
+   Requirement: "Mouse parallax should automatically disable
+   on touch devices." The moon/moon-glow already read their
+   offset from --moon-parallax-x / --moon-parallax-y (JS-driven,
+   defaulting to 0px). This rule guarantees those offsets are
+   always neutral on any device that has no fine hover pointer
+   (phones, tablets, touch laptops), regardless of what any
+   pointer-tracking script does — so the moon can never drift
+   off-center or crowd the title on a touch device, without
+   touching the JS or the variables' desktop behavior at all.
+========================================================== */
+@media (hover: none), (pointer: coarse) {
+	:root {
+		--moon-parallax-x: 0px !important;
+		--moon-parallax-y: 0px !important;
 	}
 }
 
@@ -1581,6 +1428,10 @@ body.scene--warm .sky {
 	.cinematic-moon-glow,
 	.cinematic-moon {
 		transition: opacity 0.001ms linear !important;
+	}
+	.moon,
+	.moon-glow {
+		transition: none !important;
 	}
 }
 
