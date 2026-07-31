@@ -102,8 +102,8 @@
 		DUST_SETTLE_MS: 1300,
 
 		PRE_TEXT_PAUSE_MS: 400,
-		TEXT_HOLD_MIN_MS: 4800,
-		TEXT_HOLD_MAX_MS: 5400,
+		TEXT_HOLD_MIN_MS: 1000,
+		TEXT_HOLD_MAX_MS: 1200,
 		TEXT_FADE_MS: 700,
 
 		DISSOLVE_MS: 1000,
@@ -611,7 +611,7 @@
 			MEMORIES_TA[heart.id]
 		);
 		await wait(random(CINEMATIC.TEXT_HOLD_MIN_MS, CINEMATIC.TEXT_HOLD_MAX_MS));
-		await wait(3000);
+		await wait(2000);
 		
 		/* Wrap transformMoon in try-catch to prevent errors from breaking the sequence */
 		try {
@@ -891,7 +891,7 @@
 		await typeWriter(dom.cinematicOverlayText, englishText);
 
 		// Hold English for 3 seconds
-		await wait(3000);
+		await wait(2000);
 
 		// Fade out English
 		if (hasGSAP() && !state.reducedMotion) {
@@ -954,42 +954,44 @@
 		});
 	}
 
-	/* --- transformMoon: crossfades the realistic white moon into the
-	   cute pink heart moon, with a gentle scale swell, once the memory
-	   text has finished and the reader has had a moment to sit with it. --- */
+	/* --- transformMoon: Safely handles the moon during memory sequence --- */
 	async function transformMoon() {
-		const whiteMoon = document.querySelector('.cinematic-moon-white');
-		const pinkMoon = document.querySelector('.cinematic-moon-pink');
-
-		if (!whiteMoon || !pinkMoon) return;
-
-		if (state.reducedMotion || !hasGSAP()) {
-			whiteMoon.style.opacity = '0';
-			pinkMoon.style.opacity = '1';
-			return;
+		// Simply ensure the moon stays visible and doesn't get replaced
+		if (!dom.moon) return;
+		
+		// Make sure the moon image is visible
+		const moonImg = dom.moon.querySelector('img');
+		if (moonImg) {
+			// Ensure the image has the correct source
+			if (moonImg.src && !moonImg.src.includes('m.png')) {
+				moonImg.src = 'images/m.png';
+			}
+			
+			if (hasGSAP() && !state.reducedMotion) {
+				// Simple scale pulse - no replacement
+				window.gsap.fromTo(moonImg,
+					{ scale: 1 },
+					{ 
+						scale: 1.05, 
+						duration: 1.5, 
+						ease: 'sine.inOut',
+						yoyo: true,
+						repeat: 1
+					}
+				);
+			}
 		}
-
-		return new Promise((resolve) => {
-			const tl = window.gsap.timeline({ onComplete: resolve });
-
-			tl.to(whiteMoon, {
-				opacity: 0,
-				duration: 1.5,
+		
+		// Keep the moon visible with proper opacity
+		if (hasGSAP() && !state.reducedMotion) {
+			window.gsap.to(dom.moon, {
+				opacity: 1,
+				duration: 0.5,
 				ease: 'power2.inOut'
 			});
-
-			tl.to(pinkMoon, {
-				opacity: 1,
-				duration: 1.5,
-				ease: 'power2.inOut'
-			}, '<');
-
-			tl.fromTo(pinkMoon,
-				{ scale: 0.96 },
-				{ scale: 1.03, duration: 1.5, ease: 'sine.inOut' },
-				'<'
-			);
-		});
+		} else {
+			dom.moon.style.opacity = '1';
+		}
 	}
 
 	async function hideCinematicMemory() {
@@ -1043,19 +1045,13 @@
 		dom.cinematicOverlay.setAttribute('aria-hidden', 'true');
 		unfreezeWorld();
 
-		/* Step 3: Reset moon for next heart */
-		if (dom.cinematicMoonWhite && dom.cinematicMoonPink) {
-			if (hasGSAP()) {
-				window.gsap.set(dom.cinematicMoonWhite, {
-					opacity: 1
-				});
-				window.gsap.set(dom.cinematicMoonPink, {
-					opacity: 0
-				});
-			} else {
-				dom.cinematicMoonWhite.style.opacity = "1";
-				dom.cinematicMoonPink.style.opacity = "0";
-			}
+		// Ensure moon returns to normal state
+		const moonImg = dom.moon ? dom.moon.querySelector('img') : null;
+		if (moonImg && hasGSAP()) {
+			window.gsap.set(moonImg, { 
+				scale: 1,
+				clearProps: 'scale'
+			});
 		}
 
 		/* Fix 4 — Emergency stop at the end of the cinematic sequence */
@@ -1496,7 +1492,14 @@
 		document.documentElement.style.setProperty('--glow-intensity', '2.0');
 
 		/* Moon brightens, golden particles surround the whole scene */
-		if (dom.moon) dom.moon.style.filter = 'brightness(1.4)';
+		if (dom.moon) {
+			dom.moon.style.filter = 'brightness(1.4)';
+			// Ensure the moon image is still correct
+			const moonImg = dom.moon.querySelector('img');
+			if (moonImg && !moonImg.src.includes('m.png')) {
+				moonImg.src = 'images/m.png';
+			}
+		}
 		generateParticles(18);
 
 		await wait(pauseDuration);
